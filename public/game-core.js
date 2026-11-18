@@ -179,7 +179,11 @@ G.destItems = function destItems(p, d, boss) {
   const L = d.subject === 'language' && p.skills[d.skill] ? C.lvl(p.skills[d.skill].m) : 2;
   if (d.id === 'mountain') {
     const st = C.bankStory(p);
-    items = st.questions.map(q => { const options = shuffle(q.options.slice()); return { type: 'mc', prompt: esc(q.q), options, answer: options.indexOf(q.options[0]), key: st.title + '|' + q.q, say: q.q, sub: q.sub, hint: 'Look back at the passage for a clue.', explain: esc(q.explain || ''), skill: 'reading', story: { text: st.text, title: st.title } }; });
+    const sents = (st.text.replace(/\s+/g, ' ').match(/[^.!?]+[.!?]+["”’')]*|[^.!?]+$/g) || []).map((x, i) => ({ id: 's' + (i + 1), text: x.trim() }));
+    items = st.questions.map(q => { const options = shuffle(q.options.slice()), answer = options.indexOf(q.options[0]);
+      /* authored tutoring: why each wrong choice is tempting but wrong, and the exact sentence that decides it */
+      const fbo = q.why ? Object.fromEntries(options.map((t, i) => ['o' + i, i === answer ? (q.explain || '') : (q.why[q.options.indexOf(t) - 1] || '')])) : null, hit = q.quote && sents.find(s => s.text.includes(q.quote));
+      return { type: 'mc', prompt: esc(q.q), options, answer, key: st.title + '|' + q.q, say: q.q, sub: q.sub, hint: 'Look back at the passage for a clue.', explain: esc(q.explain || ''), skill: 'reading', story: { text: st.text, title: st.title, glossary: st.glossary || {} }, ...(fbo ? { fbo, tutor: true } : {}), ...(hit ? { cites: [{ sentenceId: hit.id, quote: q.quote }], passageSents: sents } : {}) }; });
   } else if (d.id === 'cove') items = window.SQ_SUBJECTS.banks.writing.map(t => G.mcFrom(t, { skill: 'writing', sub: 'writing goal' }));
   else if (d.subject !== 'language') items = window.SQ_SUBJECTS.banks[d.id].map(t => G.mcFrom(t, { skill: d.skill, sub: 'review' }));
   else items = C.makeItems(d.skill, L, 6);

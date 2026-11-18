@@ -10,6 +10,13 @@
 | Problem significance | 10% | Early-reading support without writing a set per learner | Cite sources in the report |
 | Teamwork | 10% | Use branches and pull requests so contributions are visible | Record who did what |
 
+## AI features added in v12
+- Ask Pip tutor (explains the mistake, answers questions, never gives the answer away; replies validated)
+- Reading-level adapter (rules verify coverage, no new facts/numbers/names; Flesch-Kincaid measured by formula)
+- Read-aloud fluency coach (rules count words and WPM; AI only writes the coaching note)
+- Parent report (counted trackers/graphs; AI rewording checked so every number matches)
+- Grades 7-8 passages with per-choice tutoring
+
 ## Evaluation still to collect (do not invent results)
 Run several new passages live. For each draft log: matches source, one defensible answer, skill fit, teacher edits, review time (the teacher view's Evaluation log records this). Compare with the fixed-bank item. Report as prototype evidence only, not learning gains.
 

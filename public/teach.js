@@ -29,7 +29,7 @@ const words = s => (String(s || '').trim().match(/\S+/g) || []).length;
 const hash = s => { let h = 5381; for (const c of String(s)) h = ((h << 5) + h + c.charCodeAt(0)) >>> 0; return h.toString(16).padStart(8, '0'); };
 const fmtDate = t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' });
 const isStr = (s, min = 1, max = 400) => typeof s === 'string' && s.trim().length >= min && s.length <= max;
-const gradeBand = g => g <= 2 ? 'Grades 1–2' : g <= 4 ? 'Grades 3–4' : 'Grades 5–6';
+const gradeBand = g => g <= 2 ? 'Grades 1–2' : g <= 4 ? 'Grades 3–4' : g <= 6 ? 'Grades 5–6' : 'Grades 7–8';
 function splitSentences(t) {
   const m = String(t || '').replace(/\s+/g, ' ').trim().match(/[^.!?]+[.!?]+["”')]*|[^.!?]+$/g) || [];
   return m.map(s => s.trim()).filter(Boolean).map((text, i) => ({ id: 's' + (i + 1), text }));
@@ -391,6 +391,7 @@ window.SQ_TEACH = function install(C) {
     else if (f === 'stintro' || f === 'stname' || f === 'stline' || f === 'stpay') { const sl = TS.story[el.dataset.id], dd = sl && sl.draft; if (dd) { if (f === 'stintro') dd.intro = el.value; else { const c = dd.choices[+el.dataset.k]; if (c) c[f === 'stname' ? 'name' : f === 'stline' ? 'line' : 'payoff'] = el.value; } } }
     else if (f === 'rctext') { if (TS.recap && TS.recap.draft) { TS.recap.draft.claims[+el.dataset.k].text = el.value; TS.recap.edited = true; } }
     else if (f === 'rcnext' || f === 'rcunc') { if (TS.recap && TS.recap.draft) { TS.recap.draft[f === 'rcnext' ? 'next' : 'uncertainty'] = el.value; TS.recap.edited = true; } }
+    else if (f === 'adtext') { const r = TS.adapt.res; if (r && r.sents[+el.dataset.k]) r.sents[+el.dataset.k].text = el.value; }
     else if (f === 'chgidx') TS.chg.idx = +el.value;
     else if (f === 'chgtext') TS.chg.text = el.value;
     else if (f === 'skill') { if (e.type === 'change') { TS.skill = el.value; TS.draft = null; render(); } }
@@ -552,17 +553,70 @@ window.SQ_TEACH = function install(C) {
       <p class="small">Fixed bank baseline for comparison: one item (<code>${esc(TC.fixedBankBaseline.id)}</code>) with its own short context, no quote and no feedback for each choice.</p></details>`;
   }
   document.addEventListener('change', e => { const t = e.target; if (t && t.dataset && t.dataset.ev) { const tr = (S.traces || []).find(x => x.id === t.dataset.ev); if (tr) { tr.eval = { ...(tr.eval || {}), [t.dataset.k]: t.value }; C.save(); } } });
+
+  /* ===== reading-level adapter: same facts, different level. Measured by rules, drafted by AI, approved by the teacher ===== */
+  const syl = w => { w = String(w).toLowerCase().replace(/[^a-z]/g, ''); if (!w) return 0; const m = w.replace(/e$/, '').match(/[aeiouy]+/g); return Math.max(1, m ? m.length : 1); };
+  function readMeasure(sents) {
+    const ws = sents.join(' ').match(/[A-Za-z’'-]+/g) || [], n = Math.max(1, sents.length), W = Math.max(1, ws.length), sy = ws.reduce((a, w) => a + syl(w), 0);
+    return { words: ws.length, perSentence: Math.round(10 * ws.length / n) / 10, longPct: Math.round(100 * ws.filter(w => w.replace(/[^A-Za-z]/g, '').length >= 7).length / W), grade: Math.max(0, Math.round(10 * (0.39 * ws.length / n + 11.8 * sy / W - 15.59)) / 10) };
+  }
+  function checkAdapt(r, input, orig) {
+    const e = [], ids = new Set(input.map(x => x.id)), out = r && Array.isArray(r.sentences) ? r.sentences : [];
+    if (!out.length || out.length > 16) return ['The reply needs between 1 and 16 sentences.'];
+    const covered = new Set();
+    out.forEach((x, k) => { if (!x || !isStr(x.text, 3, 340)) return e.push(`Sentence ${k + 1} is missing text.`); if (!Array.isArray(x.from) || !x.from.length || !x.from.every(i => ids.has(i))) return e.push(`Sentence ${k + 1} does not point to original sentences.`); x.from.forEach(i => covered.add(i)); });
+    input.forEach(x => { if (!covered.has(x.id)) e.push(`Original ${x.id} is not covered, so a fact may be missing.`); });
+    const origText = input.map(x => x.text).join(' '), allOut = out.map(x => x && x.text || '').join(' ');
+    (allOut.match(/\d+/g) || []).forEach(n => { if (!origText.includes(n)) e.push(`The number ${n} is not in the original.`); });
+    const known = new Set((origText.match(/[A-Za-z’'-]+/g) || []).map(w => w.toLowerCase()));
+    out.forEach(x => { String(x && x.text || '').split(/\s+/).slice(1).forEach(w => { const c = w.replace(/[^A-Za-z’'-]/g, ''); if (/^[A-Z][a-z]+$/.test(c) && !known.has(c.toLowerCase())) e.push(`The name “${c}” is not in the original.`); }); });
+    const a = readMeasure(out.map(x => x && x.text || '')), o = orig;
+    if (r.__target === 'simpler' && a.grade > o.grade) e.push(`That version is not simpler (grade ${a.grade} vs ${o.grade}).`);
+    if (r.__target === 'harder' && a.grade < o.grade) e.push(`That version is not harder (grade ${a.grade} vs ${o.grade}).`);
+    return [...new Set(e)].slice(0, 6);
+  }
+  TS.adapt = { busy: false, msg: '', res: null };
+  async function runAdapt(target) {
+    const pi = passageInfo(), A0 = TS.adapt; if (pi.err) { A0.msg = pi.err; return render(); }
+    if (!TS.appr) { A0.msg = 'Tick the source approval above first.'; return render(); }
+    if (!C.AI().on) { A0.msg = 'Connect AI first.'; return render(); }
+    A0.busy = true; A0.res = null; A0.msg = `Pip is writing a ${target} version…`; render();
+    const sentsIn = pi.sents.map(x => ({ id: x.id, text: x.text })), orig = readMeasure(pi.sents.map(x => x.text));
+    const raw = await C.aiCall('adapt', { grade: learner().grade, level: 2, target, sentences: sentsIn }); A0.busy = false;
+    if (!raw) { A0.msg = 'The AI did not answer. Check the connection and try again.'; return render(); }
+    raw.__target = target; const errs = checkAdapt(raw, sentsIn, orig), ok = !errs.length;
+    S.traces = [{ id: 't' + Date.now(), promptVersion: 'pip-adapt-1', mode: 'live-ai reading-level', tier: 'default', createdAt: Date.now(), sourceVersion: pi.version, skillId: TS.skill, evidenceStrength: '–', input: { target, sentences: sentsIn }, output: raw, validation: { ok, errors: errs }, status: ok ? 'pending review' : 'rejected', edits: [], approvedIds: [], rejectedItems: 0, kind: 'adapt' }, ...(S.traces || [])].slice(0, 12); C.save();
+    if (!ok) { A0.msg = ''; A0.res = { bad: errs }; return render(); }
+    A0.msg = ''; A0.res = { target, orig, now: readMeasure(raw.sentences.map(x => x.text)), sents: raw.sentences.map(x => ({ text: x.text, from: x.from })), notes: String(raw.notes || '').slice(0, 200), version: pi.version }; render();
+  }
+  function adaptHtml() {
+    const A0 = TS.adapt, r = A0.res, ai = C.AI().on;
+    const body = !ai ? `<div class="tut-connect"><p><b>This needs AI.</b></p>${window.claude && window.claude.use ? '<button class="btn" data-a="tgConnect">Use my Claude account</button> ' : ''}<div class="row tight"><input id="tg-key" class="inp" type="password" autocomplete="off" placeholder="API key (sk-…)" aria-label="API key"><button class="btn ghost" data-a="tgConnect" data-k="1">Connect</button></div></div>`
+      : `<div class="row left"><button class="btn" data-a="tgAdapt" data-t="simpler" ${A0.busy ? 'disabled' : ''}>Make it simpler</button><button class="btn" data-a="tgAdapt" data-t="harder" ${A0.busy ? 'disabled' : ''}>Make it harder</button></div>`;
+    let res = '';
+    if (A0.msg) res += `<p class="small" role="status">${esc(A0.msg)}</p>`;
+    if (r && r.bad) res += `<div class="tg-rej" role="alert"><b>This version was rejected by the checks</b><ul>${r.bad.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
+    if (r && r.sents) res += `<p class="tg-mode live">Live AI draft · ${esc(r.target)} · checks passed (every original sentence covered, no new numbers or names)</p>
+      <table class="tbl"><tr><th></th><th>Original</th><th>This version</th></tr><tr><th>Words per sentence</th><td>${r.orig.perSentence}</td><td>${r.now.perSentence}</td></tr><tr><th>Long words (7+ letters)</th><td>${r.orig.longPct}%</td><td>${r.now.longPct}%</td></tr><tr><th>Estimated grade level</th><td>${r.orig.grade}</td><td>${r.now.grade}</td></tr></table>
+      <p class="small">Measured by formula (Flesch–Kincaid), not by the AI. It is a rough guide.${r.notes ? ' Pip: ' + esc(r.notes) : ''}</p>
+      <ol class="tg-sents">${r.sents.map((x, k) => `<li><input class="inp" aria-label="Sentence ${k + 1}" data-f="adtext" data-k="${k}" value="${esc(x.text)}"> <code>from ${esc(x.from.join(', '))}</code></li>`).join('')}</ol>
+      <div class="row left"><button class="btn big" data-a="tgAdaptUse">Use this as the source passage</button></div>`;
+    return `<details class="tg-change" ${r || A0.msg ? 'open' : ''}><summary>Reading-level adapter: simpler or harder, same facts</summary><p class="small">Pip rewrites the approved passage. Every original sentence must be covered and nothing new may be added. You edit it, then use it as the source for questions.</p>${body}${res}</details>`;
+  }
   const modesHtml = () => {
     const bs = btnState(), can = !passageInfo().err && TS.appr && !TS.busy;
     return `<details class="tg-change" ${TS.lesson ? 'open' : ''}><summary>Mini-lesson: worked example, guided clue, independent question</summary>
       <p class="small">From the passage above, Pip drafts one worked example, a guided clue and an independent question, plus a shorter-directions support level. You edit and approve each piece.</p>
-      <div class="row left"><button class="btn" data-a="tgMini" data-m="off" ${bs.off ? 'disabled' : ''}>Load offline mini-lesson</button><button class="btn ghost" data-a="tgMini" data-m="live" ${can && live() ? '' : 'disabled'}>Draft mini-lesson with Pip</button></div></details>${recapHtml()}${evalHtml()}`;
+      <div class="row left"><button class="btn" data-a="tgMini" data-m="off" ${bs.off ? 'disabled' : ''}>Load offline mini-lesson</button><button class="btn ghost" data-a="tgMini" data-m="live" ${can && live() ? '' : 'disabled'}>Draft mini-lesson with Pip</button></div></details>${adaptHtml()}${recapHtml()}${evalHtml()}`;
   };
 
   const actions = {
     tgPick(d) { TS.learner = d.id; TS.draft = null; TS.trace = null; TS.review = []; TS.msg = ''; const ev = evidence(learner()); if (ev.suggested) TS.skill = ev.suggested; sfx.tap(); render(); },
     tgEv() { TS.showEv = !TS.showEv; render(); },
     tgMini(d) { runMini(d.m === 'off'); },
+    tgAdapt(d) { runAdapt(d.t); },
+    async tgConnect(d) { const k = d.k ? ($('#tg-key') || {}).value : ''; const r = await C.connectAI((k || '').trim()); TS.adapt.msg = r.ok ? 'Connected.' : r.error || 'Could not connect.'; render(); },
+    tgAdaptUse() { const r = TS.adapt.res; if (!r || !r.sents) return; TS.passage = r.sents.map(x => x.text.trim()).join(' '); TS.appr = false; TS.draft = null; TS.adapt.msg = 'Loaded as the source passage. Tick the approval, then draft questions.'; TS.adapt.res = null; sfx.ok(); render(); },
     tgStory(d) { runStory(d.id, d.m === 'off'); },
     tgStoryNo(d) { delete TS.story[d.id]; render(); },
     tgStoryOff(d) { const a = (S.approved || []).find(x => x.id === d.id); if (a) { delete a.story; C.save(); } delete TS.story[d.id]; render(); },

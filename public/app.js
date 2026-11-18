@@ -89,7 +89,7 @@ function fix(p) { // fill in fields added by newer versions
 }
 const cur = () => fix(S.qaOn && S.qa && S.current === 'qa' ? S.qa : S.profiles.find(p => p.id === S.current));
 const lvl = m => m < 35 ? 1 : m < 70 ? 2 : 3;
-const startM = g => g <= 2 ? 20 : g <= 4 ? 45 : 62;
+const startM = g => g <= 2 ? 20 : g <= 4 ? 45 : g <= 6 ? 62 : 72;
 function newProfile(name, avatar, grade) {
   return fix({id:'p' + Date.now() + (Math.random() * 1e4 | 0), name, avatar, grade, xp:0, stars:0, streak:0, lastDay:'',
     quests:0, placed:false, stickers:[], seen:[], topic:'', log:[],
@@ -181,6 +181,16 @@ function anim(el, cls, ms = 600) { if (!el) return; el.classList.remove(cls); vo
 
 /* ---------- AI ---------- */
 const QUICK = ['adventure', 'explain', 'vocab', 'writing'];
+/* Connect Pip's AI from anywhere in the app: the viewer's own Claude account on the shared page, or an API key on a local server. */
+async function connectAI(key) {
+  if (!key && window.claude && window.claude.use && window.SQ_PROMPTS) { try { const sm = await window.claude.use('sample'); if (sm) { AI = {on:true, provider:'Claude (built in)', model:'', sample:sm}; return {ok:true}; } } catch (e) { /* fall through */ } return {ok:false, error:'Claude did not allow AI for this page.'}; }
+  if (!key) return {ok:false, error:'Paste an API key, or open the shared Claude page and allow AI there.'};
+  const provider = /^sk-ant-/.test(key) ? 'anthropic' : /^AIza/.test(key) ? 'gemini' : /^sk-/.test(key) ? 'openai' : 'anthropic';
+  try { const r = await fetch('/api/key', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({provider, key})}), d = await r.json();
+    if (!r.ok) return {ok:false, error:d.error || 'Could not connect.'};
+    AI = {on:!!d.ai, provider:d.provider, model:d.model}; return {ok:AI.on};
+  } catch (e) { return {ok:false, error:'Run the app with python3 server.py to connect an API key.'}; }
+}
 async function ai(kind, params) {
   if (!AI.on) return null;
   if (AI.sample) { // shared page: ask Claude through the viewer's own account
@@ -333,7 +343,7 @@ function newP() {
   view(`<div class="card"><h2>Make your player</h2>
     <label class="lab" for="nm">Your first name or a nickname</label><input id="nm" class="inp" maxlength="14" autocomplete="off" placeholder="Type here…">
     <div class="lab">Pick your picture</div><div class="avs">${AVATARS.map(a => `<button class="av ${a === draft.avatar ? 'on' : ''}" data-a="av" data-v="${a}">${a}</button>`).join('')}</div>
-    <div class="lab">What grade are you in?</div><div class="grades">${[1,2,3,4,5,6].map(g => `<button class="gr ${g === draft.grade ? 'on' : ''}" data-a="gr" data-v="${g}">${g}</button>`).join('')}</div>
+    <div class="lab">What grade are you in?</div><div class="grades">${[1,2,3,4,5,6,7,8].map(g => `<button class="gr ${g === draft.grade ? 'on' : ''}" data-a="gr" data-v="${g}">${g}</button>`).join('')}</div>
     <p id="err" class="err" role="alert"></p>
     <div class="row"><button class="btn ghost" data-a="home">Back</button><button class="btn big" data-a="mkP">Let’s go! 🚀</button></div></div>`);
 }
@@ -504,8 +514,10 @@ function weakSub(p) {
 function bankStory(p) {
   const L = lvl(p.skills.reading.m);
   const seenT = Array.isArray(p.seen) ? p.seen : [];
-  let pool = B.stories.filter(s => s.level === L && !seenT.includes(s.title));
-  if (!pool.length) { if (Array.isArray(p.seen)) { const keep = p.seen.filter(t => !B.stories.some(s => s.level === L && s.title === t)); Object.keys(p.seen).forEach(k => { if (isNaN(+k)) keep[k] = p.seen[k]; }); p.seen = keep; } pool = B.stories.filter(s => s.level === L); }
+  const adv = p.grade >= 7, fit = s => !!s.adv === adv; /* grades 7-8 read the advanced passages, everyone else the originals */
+  let pool = B.stories.filter(s => s.level === L && fit(s) && !seenT.includes(s.title));
+  if (adv && !pool.length) pool = B.stories.filter(s => s.adv && !seenT.includes(s.title));
+  if (!pool.length) { if (Array.isArray(p.seen)) { const keep = p.seen.filter(t => !B.stories.some(s => s.level === L && s.title === t)); Object.keys(p.seen).forEach(k => { if (isNaN(+k)) keep[k] = p.seen[k]; }); p.seen = keep; } pool = B.stories.filter(s => fit(s) && (adv || s.level === L)); }
   return pick(pool);
 }
 function showStory(st) {
@@ -647,7 +659,7 @@ function dash(extra = '') {
   view(`<header class="top dtop"><b>👩‍🏫 Teacher &amp; Parent Dashboard</b><span class="chip ${AI.on ? 'aion' : ''}">${AI.on ? `✨ AI on · ${esc(AI.provider)}` : 'AI off'}</span><span class="sp"></span><button class="chip" data-a="qaOpen" title="Synthetic test profile, separate from real students">🧪 Open QA Adventurer</button><button class="chip" data-a="home">⬅ Back to app</button></header>
     <div class="card dashc"><h2>🤖 Generative AI</h2>${connect}<div class="row left"><button class="btn ghost" data-a="prompts">🔍 How the AI is prompted</button></div><div id="pr"></div></div>
     <div class="card dashc" id="tcard" aria-live="polite"></div>
-    <div class="card dashc" id="ecard"></div><div class="card dashc" id="rcard"></div>
+    <div class="card dashc" id="ecard"></div><div class="card dashc" id="pacard"></div><div class="card dashc" id="rcard"></div>
     <div class="card dashc"><h2>Class overview</h2>
       ${ps.length ? `<div class="scroll"><table class="tbl heat"><tr><th>Student</th>${SKILLS.map(s => `<th title="${s.label}">${s.icon}<br><small>${s.label}</small></th>`).join('')}</tr>
         ${rowsOrdered.map(x => x === 'SEP' ? sepRow : `<tr class="${x.id === dashSel ? 'sel' : ''}"><td><button class="link" data-a="selP" data-id="${x.id}">${x.avatar} ${esc(x.name)} <small>G${x.grade}</small></button></td>${SKILLS.map(s => `<td class="${heat(x.skills[s.id].m)}">${Math.round(x.skills[s.id].m)}</td>`).join('')}</tr>`).join('')}</table></div>
@@ -657,6 +669,7 @@ function dash(extra = '') {
     <div class="card dashc"><h2>${p ? `${p.avatar} ${esc(p.name)} · Grade ${p.grade}` : 'Student detail'}</h2>${detail}</div>
     <p class="center small">All student data stays in this browser. Only grade, level, topic, scores and recent question text are sent to the AI – never names.</p>`, false, true);
   if (T) T.mount();
+  if (G && G.parentMount) G.parentMount();
 }
 function demo() {
   const defs = [['Ava','🐼',2,{phonics:72,spelling:58,vocab:41,grammar:44,sequence:30,reading:33,writing:28},.04],['Liam','🦁',3,{phonics:80,spelling:62,vocab:55,grammar:38,sequence:42,reading:36,writing:40},.3],
@@ -839,7 +852,7 @@ const ACT = {
 function leadInst(p) { return G ? (G.lead(p) || p.zoo[0] || null) : null; }
 function leadName(p) { const z = leadInst(p); return z ? z.name : (p.petName || 'your pet'); }
 function heroDesc(p) { const z = leadInst(p); if (z) return `${z.name}, a ${G.STAGE_NAME[G.stageOf(z)].toLowerCase()} ${G.FAM[z.fam].name.toLowerCase()}`; return `${p.petName}, a ${STAGE[stage(petOf(p).xp)].toLowerCase()} ${PETS[p.pet].name.toLowerCase()}`; }
-const CTX = { S, $, esc, view, art, coin, newProfile, togs, sfx, speak, hush, canSpeak, burst, anim, floaty, confetti, flyCoins, countUp, calm, pick, shuffle, clamp, today, save, cur, fix, lvl, LV, SKILLS, makeItems, bankStory, record,
+const CTX = { aiCall: (k, p) => ai(k, p), connectAI, S, $, esc, view, art, coin, newProfile, togs, sfx, speak, hush, canSpeak, burst, anim, floaty, confetti, flyCoins, countUp, calm, pick, shuffle, clamp, today, save, cur, fix, lvl, LV, SKILLS, makeItems, bankStory, record,
   applySettings, home, dash: () => dash(), ACT, AI: () => AI, ASSETS: () => ASSETS, audio: () => (ac = ac || new (window.AudioContext || window.webkitAudioContext)()) };
 if (window.SQ_GAME) { G = window.SQ_GAME(CTX); Object.assign(ACT, G.actions); }
 window.SQ_G = G; /* test hook */

@@ -31,3 +31,10 @@ Each person works on a branch, opens a pull request, and one other person review
 
 ## Run locally
 `python3 server.py` then open http://localhost:5173 . Add `#qa` to the address for the QA adventurer and Demo Controls. `SQ_MOCK=1 python3 server.py` shows the AI screens with canned replies (label these as simulated in the demo).
+
+## Parent report email
+The dashboard has a Parent study report card. Copy, Open in email app and Download always work. **Send now** needs the Python server:
+- Demo: `SQ_EMAIL_DRYRUN=1 python3 server.py` saves each email to `outbox/` (nothing is delivered).
+- Real: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`. On a hosted server also set `SQ_EMAIL_TOKEN` (otherwise Send is refused).
+- Limit: 10 emails per hour. The teacher previews and confirms every send; nothing is sent automatically. A scheduled weekly send would need student data stored on the server, which this prototype does not do.
+- Get consent from the parent first (the card has a checkbox). Parent addresses stay in the browser.

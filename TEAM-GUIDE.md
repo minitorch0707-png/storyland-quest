@@ -10,6 +10,9 @@
 | `game-demo.js` | Presenter Demo Controls (QA only) | add a demo shortcut |
 | `teach.js`, `telescope.js` | Teacher workflow: evidence, passage drafting, approval, modes | add a teacher AI mode |
 | `prompts.js` | Every prompt sent to the model | tune wording. Bump the version string |
+| `game-tutor.js` | Ask Pip: AI tutor in battles (explains where an answer went wrong, answers student questions; reply checks reject answer leaks and invented quotes) | tune checks, chips |
+| `game-fluency.js` | Read it aloud: speech recognition + word alignment, AI coaching note | change scoring |
+| `game-parent.js` | Parent study report with trackers/graphs; Send button -> `/api/email` | change report layout |
 | `server.py` | Static server + `/api/ai` | add an AI `kind` and its prompt |
 
 Add a script tag for any new file in BOTH `index.html` and `storyland-quest.html`.
@@ -28,3 +31,9 @@ Add a script tag for any new file in BOTH `index.html` and `storyland-quest.html
 
 ## Testing checklist before a demo
 Open `#qa` > Demo Controls > AI Tutor Demo > load offline fixture > approve > Play as Ari > pick the bench > retry > fresh question > check the teacher view lists three attempts.
+
+## AI is connected, not canned
+The tutor, adapter, fluency coach and report notes call `C.aiCall(kind, params)`. On the shared Claude page the viewer's own account answers; locally paste a key in the tutor panel (or dashboard). There is no offline tutor. Prompts exist twice: `prompts.js` (shared page) and `server.py` (local server). Keep them in sync.
+
+## Grades 7-8
+Advanced reading passages are in `content.js` (`adv:true`). Each question has `why` (why each wrong choice is tempting) and `quote` (the deciding sentence) so the tutor can teach, not just score.

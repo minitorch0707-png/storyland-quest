@@ -122,7 +122,7 @@ function teamHtml() {
 }
 function passHtml(it) {
   const sents = it.passageSents || (it.story ? splitSents(it.story.text) : it.passage ? splitSents(it.passage) : null); if (!sents) return '';
-  const done = ['ready', 'casting', 'victory', 'claimed'].includes(BT.state.phase), cites = (done || (BT.state.phase === 'retry' && BT.spec.practice)) && it.cites ? it.cites : [];
+  const done = ['ready', 'casting', 'victory', 'claimed'].includes(BT.state.phase), cites = (done || (BT.state.phase === 'retry' && (BT.spec.practice || it.tutor))) && it.cites ? it.cites : [];
   const wh = str => str.split(/(\s+)/).map(w => !w ? '' : /^\s+$/.test(w) ? ' ' : `<span class="w" data-a="bWord" data-w="${esc(w.replace(/[^A-Za-z'’-]/g, ''))}">${esc(w)}</span>`).join('');
   return `<div class="row left tight"><button class="say" data-a="bReadP">🔊 Read the passage</button><button class="say" data-a="bStop">⏹ Stop</button><small>Tap any word to hear it.</small></div><p class="bt-text">${sents.map(s => {
     const ms = cites.filter(c => c.sentenceId === s.id).map(c => ({ i: s.text.indexOf(c.quote), q: c.quote })).filter(m => m.i >= 0).sort((a, b) => a.i - b.i); let out = '', pos = 0;
@@ -170,7 +170,7 @@ function qHtml() {
     return `<button class="opt c${n % 4} ${right ? 'right' : ''} ${out ? 'wrong' : ''}" data-a="bAns" data-id="${o.id}" ${!can || out ? 'disabled' : ''}><span class="ltr">${'ABCD'[n] || n + 1}</span><span class="otx">${it.raw === false ? esc(o.text) : esc(o.text)}</span></button>`; }).join('')}</div>`;
   const bag = [['bClue', 'clue_lantern', '🔦', 'Clue Lantern', s.bag.clue], ['bLook', 'item_second_look', '👀', 'Second Look', s.bag.look], ['bBubble', 'item_bubble_guard', '🫧', 'Bubble Guard', s.bag.bubble]]
     .map(([a, im, em, t, n]) => `<button class="bagb ${can && n ? '' : 'off'}" data-a="${a}" aria-disabled="${!(can && n)}">${art(im, em, 'mi')}<span>${t} ×${n}</span></button>`).join('');
-  return `${stem}${body}<div class="bt-bag" role="group" aria-label="Battle Bag">${bag}</div><div id="bt-fb" aria-live="polite">${s.phase === 'victory' || s.phase === 'claimed' ? '' : fbHtml(it)}</div>${s.phase === 'victory' ? chestHtml() : ''}`;
+  return `${stem}${body}<div class="bt-bag" role="group" aria-label="Battle Bag">${bag}${G.tutorBtn ? G.tutorBtn(it) : ''}</div><div id="bt-fb" aria-live="polite">${s.phase === 'victory' || s.phase === 'claimed' ? '' : fbHtml(it)}</div>${s.phase === 'victory' ? chestHtml() : ''}`;
 }
 function chestHtml() {
   const t = BT.spec.boss ? 'boss' : BT.spec.source === 'daily' ? 'daily' : 'standard';
@@ -378,6 +378,8 @@ G.btx = {
   resolve() { if (!BT) return false; BT.sim = true; BT.spec.source = 'demo'; BT.spec.dedupe = ''; BT.state = { ...BT.state, phase: 'victory', correctIds: BT.state.correctIds.length ? BT.state.correctIds : [], resolve: BT.state.resolve }; BT.timers.forEach(clearTimeout); BT.busy = false; onVictory(); return true; },
   results() { if (!BT) return false; BT.sim = true; BT.spec.source = 'demo'; BT.spec.dedupe = ''; const s = BT.state; BT.state = { ...s, phase: 'victory' }; onVictory(); const pd = BT.p.pending; BT.timers.forEach(clearTimeout); BT = null; hush(); if (G.fx) G.fx.detach(); G.chestScreen(); return !!pd; },
   preview(id) { if (!BT) return false; const me = $('#fme'), foe = $('#fmon'); if (!me || !foe || !G.fx.arena) return false; G.playMoveFx(G.fx.arena, me, foe, id); return true; },
-  cur: () => (BT ? { phase: BT.state.phase, hp: BT.state.hp } : null)
+  cur: () => (BT ? { phase: BT.state.phase, hp: BT.state.hp } : null),
+  ctx: () => { if (!BT) return null; const it = curItem(), pk = (it.opts || []).find(o => o.id === BT.picked); return { item: it, picked: pk ? strip(pk.text) : '', pickedId: BT.picked || '', phase: BT.state.phase, tries: BT.tries || 0, qid: it.qid, spec: BT.spec }; },
+  peek: () => BT
 };
 });
