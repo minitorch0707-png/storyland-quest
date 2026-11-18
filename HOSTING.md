@@ -11,7 +11,7 @@ The app is static files plus one optional Python server. Pick the row that fits.
 
 ## Run it from GitHub (recommended for the team)
 1. Create an empty repo on github.com (name: `storyland-quest`), then add your group mates under Settings > Collaborators.
-2. Push (commands below). 3. Settings > Pages > Source: **GitHub Actions**. The workflow in `.github/workflows/pages.yml` publishes `public/` at `https://<user>.github.io/storyland-quest/` after every push to `main`.
+2. Push (commands below). 3. Settings > Pages > Source: **GitHub Actions**. Copy `docs/pages-workflow.yml` to `.github/workflows/pages.yml` (GitHub web: Add file > Create new file; the push token here can't create workflows). It publishes `public/` at `https://<user>.github.io/storyland-quest/` after every push to `main`.
 4. Anyone can also clone and run: `git clone <repo> && cd storyland-quest && python3 server.py` (Python 3 only, no installs).
 
 ## Rules for a hosted server
