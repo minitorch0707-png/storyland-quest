@@ -12,15 +12,17 @@ const FREE_CHIPS = [['Give me a reading tip'], ['How do I find the main idea?'],
 let T = { key: '', turns: [], busy: false, msg: '', connecting: false };
 
 const passageOf = it => (!it ? '' : it.passageSents ? it.passageSents.map(s => s.text).join(' ') : it.story ? it.story.text : it.passage ? strip(it.passage) : '');
-const rightText = it => (it ? strip(((it.opts || []).find(o => o.id === it.correctId) || {}).text || '') : '');
+const rightText = it => (!it ? '' : it.tiles ? (it.goal || []).join(it.type === 'build' ? '' : ' ') : strip(((it.opts || []).find(o => o.id === it.correctId) || {}).text || ''));
 const phaseOf = c => (!c ? 'question' : ['ready', 'casting', 'victory', 'claimed'].includes(c.phase) ? 'solved' : c.pickedId && c.phase === 'retry' ? 'retry' : 'question');
-const ctxNow = () => (G.btx && G.btx.ctx()) || null;
+/* the live battle question, or the last one the child saw (for 20 minutes) so "Why is my answer wrong?" still has context outside a battle */
+let LAST = null;
+const ctxNow = () => { const live = G.btx && G.btx.ctx(); if (live) { LAST = { ...live, at: Date.now() }; return live; } return LAST && Date.now() - LAST.at < 20 * 60000 ? { ...LAST, stale: true } : null; };
 const voiceOn = () => S.settings.tutorVoice !== false;
 
 const BONUS = 5, DAILY_BONUS = 30;
 G.TUTOR_BONUS = BONUS;
-G.tutorBtn = it => (it && !it.tiles && it.opts ? '<button class="tutb" data-a="tutOpen" aria-haspopup="dialog" aria-label="Ask Pip for help">🦊 Ask Pip</button>' : '');
-G.tutorHelpBtn = it => (it && !it.tiles && it.opts ? `<button class="btn big pipask" data-a="tutOpen" aria-haspopup="dialog">🦊 Ask Pip <small>+${BONUS} 🪙 when you work it out</small></button>` : '');
+G.tutorBtn = it => (it ? '<button class="tutb" data-a="tutOpen" aria-haspopup="dialog" aria-label="Ask Pip for help">🦊 Ask Pip</button>' : '');
+G.tutorHelpBtn = it => (it ? `<button class="btn big pipask" data-a="tutOpen" aria-haspopup="dialog">🦊 Ask Pip <small>+${BONUS} 🪙 when you work it out</small></button>` : '');
 /* Asking Pip is never a penalty. If you miss, ask Pip, and then work it out yourself, you earn a few coins (a daily cap stops farming). */
 const helped = new Set();
 G.tutorBonus = (qid, att) => { const p = C.cur(); if (!p || !att.correct || att.attempt < 2 || !helped.has(qid)) return '';
@@ -52,7 +54,7 @@ function view(focus) {
   const c = ctxNow(), ai = C.AI().on, chips = c ? BATTLE_CHIPS : FREE_CHIPS;
   const log = `<div class="tut-log" role="log" aria-live="polite">${T.turns.map((t, n) => t.role === 'you' ? `<p class="tut-you"><b>You:</b> ${esc(t.text)}</p>`
     : `<div class="tut-pip"><p><b>Pip:</b> ${esc(t.text)}</p>${t.quote ? `<q class="tut-q">${esc(t.quote)}</q>` : ''}${t.check ? `<p><i>${esc(t.check)}</i></p>` : ''}<small class="tut-tag">Claude’s reply${c ? ' · checked against the passage' : ''}</small> <button class="btn sm ghost" data-a="tutSay" data-n="${n}">🔊 Read aloud</button></div>`).join('') || `<p class="small">${c ? 'Ask about this question. Pip helps you find the answer, not give it away.' : 'Ask Pip anything about reading, words or writing.'}</p>`}${T.busy ? '<p class="small" role="status">Pip is thinking…</p>' : ''}${ai && T.msg ? `<p class="small" role="status">${esc(T.msg)}</p>` : ''}</div>`;
-  G.panel(`<h2>🦊 Ask Pip ${c ? '<small>· this question</small>' : ''} <span class="aimode ${ai ? 'on' : ''}">${ai ? '✨ AI on' : 'AI off'}</span></h2>${ai ? `<p class="small tut-mode">✨ Connected to ${esc(C.AI().provider || 'Claude')}.</p>${log}
+  G.panel(`<h2>🦊 Ask Pip ${c ? `<small>· ${c.stale ? 'your last question' : 'this question'}</small>` : ''} <span class="aimode ${ai ? 'on' : ''}">${ai ? '✨ AI on' : 'AI off'}</span></h2>${ai ? `<p class="small tut-mode">✨ Connected to ${esc(C.AI().provider || 'Claude')}.</p>${log}
     <div class="tut-chips" role="group" aria-label="Quick questions">${chips.map(([t], k) => `<button class="btn sm" data-a="tutChip" data-k="${k}">${t}</button>`).join('')}</div>
     <div class="row tight"><input id="tut-in" class="inp" maxlength="200" placeholder="Type your own question…" aria-label="Your question for Pip" autocomplete="off"><button class="btn big" data-a="tutSend">Ask</button></div>
     <label class="tg-chk"><input type="checkbox" id="tut-voice" data-a="tutVoice" ${voiceOn() ? 'checked' : ''}> 🔊 Read Pip’s answers out loud</label>` : connectCard()}
@@ -78,7 +80,7 @@ async function ask(text) {
   if (T.busy) return; if (!C.AI().on) { await autoConnect(); if (!C.AI().on) return view(); }
   const c = ctxNow(), it = c && c.item, p = C.cur(), clean = String(text).replace(/[<>{}]/g, '').slice(0, 200);
   T.turns.push({ role: 'you', text: clean }); T.msg = ''; T.busy = true; view(false);
-  const body = extra => ({ grade: (p && p.grade) || 3, level: 3, passage: passageOf(it).slice(0, 1600), question: it ? strip(it.prompt) : '', options: it ? (it.opts || []).map(o => strip(o.text)) : [], correct: rightText(it), picked: c ? c.picked : '', phase: phaseOf(c), ask: clean + (extra || ''),
+  const body = extra => ({ grade: (p && p.grade) || 3, level: 3, passage: passageOf(it).slice(0, 1600), question: it ? strip(it.prompt) + (it.hint && !it.cites ? ` (clue shown to the student: ${strip(it.hint)})` : '') : '', options: it && it.opts ? it.opts.map(o => strip(o.text)) : [], correct: rightText(it), picked: c ? c.picked : '', phase: phaseOf(c), ask: clean + (extra || ''),
     history: T.turns.slice(-5, -1).map(t => ({ role: t.role === 'you' ? 'student' : 'tutor', text: t.text })) });
   let raw = await C.aiCall('tutor', body()); if (!okReply(raw, c)) raw = await C.aiCall('tutor', body(' (Please keep it short, never give the answer away, and quote the passage exactly if you quote.)'));
   T.busy = false;
@@ -100,6 +102,6 @@ function fab() {
 }
 setInterval(fab, 500);
 G.tutorOk = okReply;
-const _leave = G.leave; G.leave = (...a) => { hush(); G.closePanel(); return _leave(...a); };
+const _leave = G.leave; G.leave = (...a) => { ctxNow(); hush(); G.closePanel(); return _leave(...a); };
 const _qd = A.qaDash; if (_qd) A.qaDash = (...a) => { G.closePanel(); return _qd(...a); };
 });

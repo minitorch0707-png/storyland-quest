@@ -379,7 +379,7 @@ G.btx = {
   results() { if (!BT) return false; BT.sim = true; BT.spec.source = 'demo'; BT.spec.dedupe = ''; const s = BT.state; BT.state = { ...s, phase: 'victory' }; onVictory(); const pd = BT.p.pending; BT.timers.forEach(clearTimeout); BT = null; hush(); if (G.fx) G.fx.detach(); G.chestScreen(); return !!pd; },
   preview(id) { if (!BT) return false; const me = $('#fme'), foe = $('#fmon'); if (!me || !foe || !G.fx.arena) return false; G.playMoveFx(G.fx.arena, me, foe, id); return true; },
   cur: () => (BT ? { phase: BT.state.phase, hp: BT.state.hp } : null),
-  ctx: () => { if (!BT) return null; const it = curItem(), pk = (it.opts || []).find(o => o.id === BT.picked); return { item: it, picked: pk ? strip(pk.text) : '', pickedId: BT.picked || '', phase: BT.state.phase, tries: BT.tries || 0, qid: it.qid, spec: BT.spec }; },
+  ctx: () => { if (!BT) return null; const it = curItem(), pk = (it.opts || []).find(o => o.id === BT.picked); return { item: it, picked: it.tiles ? (it.tray || []).map(x => x.t).join(it.type === 'build' ? '' : ' ') : pk ? strip(pk.text) : '', pickedId: BT.picked || '', phase: BT.state.phase, tries: BT.tries || 0, qid: it.qid, spec: BT.spec }; },
   peek: () => BT
 };
 });
