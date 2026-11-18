@@ -147,7 +147,7 @@ function fbHtml(it) {
     return `<div class="fb warn"><div><b>Not quite.</b> ${why}${ex}</div><div class="row tight"><button class="btn big" data-a="bRetry">Try again</button>${can ? '<button class="btn ghost" data-a="bNew">Try a new question</button>' : ''}</div></div>`;
   }
   if (ph === 'question' && BT.hint) return `<div class="fb ok"><div><b>Clue Lantern:</b> ${esc(it.hint || 'Read it again slowly and look for a clue.')}<br><small>This turn is marked as helped.</small></div></div>`;
-  if (ph === 'ready' || ph === 'casting') return `<div class="fb good"><div><b>Yes!</b> ${fb ? esc(fb[it.correctId] || '') : (it.explain || '')}${it.cites ? '<br><small>The highlighted words in the passage are the clue.</small>' : ''}${BT.spec.practice && s.attempts.filter(a => a.turn === s.turn).length > 1 ? '<br><small>You got it after a clue, so Pip counts this one as “after help”. A fresh question comes next.</small>' : ''}</div></div>`;
+  if (ph === 'ready' || ph === 'casting') return `<div class="fb good"><div><b>Yes!</b> ${fb ? esc(fb[it.correctId] || '') : (it.explain || '')}${it.cites ? '<br><small>The highlighted words in the passage are the clue.</small>' : ''}${G.thinkBtn ? G.thinkBtn(it) : ''}${BT.spec.practice && s.attempts.filter(a => a.turn === s.turn).length > 1 ? '<br><small>You got it after a clue, so Pip counts this one as “after help”. A fresh question comes next.</small>' : ''}</div></div>`;
   return '';
 }
 function sheetHtml() {

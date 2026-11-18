@@ -539,3 +539,5 @@ pre{background:#1f1b3a;color:#e8e5ff;border-radius:14px;padding:14px;white-space
 @media (prefers-reduced-motion:no-preference){.pipfab{animation:pipwob 3s ease-in-out infinite}@keyframes pipwob{0%,88%,100%{transform:none}92%{transform:rotate(-6deg) scale(1.06)}96%{transform:rotate(5deg) scale(1.06)}}}
 .tutb{background:#7b4bd6 !important;color:#fff !important;border-radius:999px;font-weight:700}.tutb span{color:#fff}
 .optmail{margin:8px 0}.optmail summary{cursor:pointer;font-weight:600}.tg-auto{border:2px solid #b9a6e8;border-radius:12px;padding:10px;margin:8px 0;background:#f6f1ff}
+.exstrips{display:grid;gap:8px;margin:8px 0}.exs{text-align:left;white-space:normal;font-weight:500}
+.aimode{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#eee8d8;color:#6b6280;white-space:nowrap}.aimode.on{background:#e3f6ea;color:#1f7a45}

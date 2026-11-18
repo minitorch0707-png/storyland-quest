@@ -33,16 +33,16 @@ function okReply(r, c) {
 
 function connectCard() {
   const hosted = !!(window.claude && window.claude.use);
-  return `<div class="tut-connect"><p><b>${T.connecting ? 'Connecting Pip to Claude…' : 'Pip needs Claude to answer.'}</b></p>
-    ${hosted ? '<button class="btn big" data-a="tutConnect">Connect to Claude</button><p class="small">Allow the AI permission for this page. Only your question and, in a battle, the passage are sent. Never your name.</p>' : ''}
-    <label class="tg-l" for="tut-key">${hosted ? 'Or paste' : 'Paste'} an API key (Claude, ChatGPT or Gemini)</label><div class="row tight"><input id="tut-key" class="inp" type="password" autocomplete="off" placeholder="sk-…" aria-label="API key"><button class="btn" data-a="tutKey">Connect</button></div>
-    <p class="small">The key stays with the app’s server on this computer. If Claude Code is installed here, the server uses it automatically.</p>${T.msg ? `<p class="err" role="alert">${esc(T.msg)}</p>` : ''}</div>`;
+  return `<div class="tut-connect"><p><b>${T.connecting ? 'Connecting Pip…' : 'Pip’s AI is resting right now.'}</b></p>
+    <p>You can still play. Try another battle, or ask again in a moment.</p>
+    <div class="row"><button class="btn big" data-a="tutLeaveToPlay">▶ Practise another way</button>${hosted ? '<button class="btn" data-a="tutConnect">Try again</button>' : '<button class="btn" data-a="tutConnect">Try again</button>'}</div>
+    <p class="small">Grown-up? AI is set up in <b>Teachers &amp; Parents</b> (behind the grown-up gate): ${hosted ? 'on this Claude page, allow AI when asked; ' : ''}on a local server, paste a key there or set an API key in the server’s environment.</p>${T.msg ? `<p class="small" role="status">${esc(T.msg)}</p>` : ''}</div>`;
 }
 function view(focus) {
   const c = ctxNow(), ai = C.AI().on, chips = c ? BATTLE_CHIPS : FREE_CHIPS;
   const log = `<div class="tut-log" role="log" aria-live="polite">${T.turns.map((t, n) => t.role === 'you' ? `<p class="tut-you"><b>You:</b> ${esc(t.text)}</p>`
     : `<div class="tut-pip"><p><b>Pip:</b> ${esc(t.text)}</p>${t.quote ? `<q class="tut-q">${esc(t.quote)}</q>` : ''}${t.check ? `<p><i>${esc(t.check)}</i></p>` : ''}<small class="tut-tag">Claude’s reply${c ? ' · checked against the passage' : ''}</small> <button class="btn sm ghost" data-a="tutSay" data-n="${n}">🔊 Read aloud</button></div>`).join('') || `<p class="small">${c ? 'Ask about this question. Pip helps you find the answer, not give it away.' : 'Ask Pip anything about reading, words or writing.'}</p>`}${T.busy ? '<p class="small" role="status">Pip is thinking…</p>' : ''}${ai && T.msg ? `<p class="small" role="status">${esc(T.msg)}</p>` : ''}</div>`;
-  G.panel(`<h2>🦊 Ask Pip ${c ? '<small>· this question</small>' : ''}</h2>${ai ? `<p class="small tut-mode">✨ Connected to ${esc(C.AI().provider || 'Claude')}.</p>${log}
+  G.panel(`<h2>🦊 Ask Pip ${c ? '<small>· this question</small>' : ''} <span class="aimode ${ai ? 'on' : ''}">${ai ? '✨ AI on' : 'AI off'}</span></h2>${ai ? `<p class="small tut-mode">✨ Connected to ${esc(C.AI().provider || 'Claude')}.</p>${log}
     <div class="tut-chips" role="group" aria-label="Quick questions">${chips.map(([t], k) => `<button class="btn sm" data-a="tutChip" data-k="${k}">${t}</button>`).join('')}</div>
     <div class="row tight"><input id="tut-in" class="inp" maxlength="200" placeholder="Type your own question…" aria-label="Your question for Pip" autocomplete="off"><button class="btn big" data-a="tutSend">Ask</button></div>
     <label class="tg-chk"><input type="checkbox" id="tut-voice" data-a="tutVoice" ${voiceOn() ? 'checked' : ''}> 🔊 Read Pip’s answers out loud</label>` : connectCard()}
@@ -58,6 +58,7 @@ A.tutClose = () => { hush(); G.closePanel(); };
 A.tutSay = d => { const t = T.turns[+d.n]; if (t) { hush(); speak(t.text + (t.check ? ' ' + t.check : '')); } };
 A.tutVoice = () => { const i = $('#tut-voice'); S.settings.tutorVoice = !!(i && i.checked); if (!S.settings.tutorVoice) hush(); C.save(); };
 A.tutConnect = async () => { T.msg = ''; T.connecting = true; view(false); const r = await C.connectAI(''); T.connecting = false; T.msg = r.ok ? '' : r.error || 'Could not connect.'; view(); };
+A.tutLeaveToPlay = () => { hush(); G.closePanel(); if (G.btx && G.btx.live()) return; G.map(); };
 A.tutKey = async () => { const i = $('#tut-key'), k = i ? i.value.trim() : ''; T.msg = 'Checking the key…'; view(false); const r = await C.connectAI(k); T.msg = r.ok ? '' : r.error || 'Could not connect.'; view(); };
 A.tutChip = d => { const c = ctxNow(); ask((c ? BATTLE_CHIPS : FREE_CHIPS)[+d.k][0]); };
 A.tutSend = () => { const i = $('#tut-in'), v = i ? i.value.trim() : ''; if (!v) { T.msg = 'Type a question first.'; return view(); } ask(v); };

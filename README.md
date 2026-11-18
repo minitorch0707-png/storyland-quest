@@ -42,7 +42,7 @@ To test the AI screens without a key: `SQ_MOCK=1 python3 server.py` (canned repl
 - **Not used:** phonics and spelling. A wrong rhyme or spelling would teach an error, so those come only from the checked bank.
 - **Hallucination guard:** every AI reply is validated in the browser (shape, answer index, lengths, duplicate options). A failed reply is replaced with bank content.
 - **Guessing guard:** answers faster than 1.2 s are flagged as likely guesses, count for half, and show on the dashboard.
-- **Privacy:** student data stays in the browser (localStorage). Only grade, level, topic and scores go to the AI, never names. The API key stays in `server.py`'s process.
+- **Privacy:** student data stays in the browser (localStorage). Only grade, level, topic and scores go to the AI, never names. The API key is saved in a `.env` file next to `server.py` (file permissions 600) and is never sent to the page. Anyone with access to that folder can read it.
 - **Prompts:** in `server.py`, and viewable live in the dashboard under "How the AI is prompted".
 
 ## Files

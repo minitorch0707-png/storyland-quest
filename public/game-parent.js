@@ -7,7 +7,7 @@ const { S, $, esc } = C, A = G.actions;
 const DAY = 864e5, SK = { reading: 'Reading', inference_causal: 'Finding clues', phonics: 'Sounds', vocab: 'Word meanings', spelling: 'Spelling', grammar: 'Grammar', sequence: 'Putting things in order', writing: 'Writing' };
 const skName = id => SK[id] || String(id).replace(/_/g, ' ');
 const dayKey = t => { const d = new Date(t); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
-const BAD = /\b(dyslex|disorder|adhd|autis|disab|lazy|slow learner|low ability|behind|struggl|weak)/i;
+const BAD = /\b(dyslex\w*|disorder|adhd|autis\w*|disabilit\w*|lazy|slow learner|low[- ]ability|struggling (reader|student|learner|child)|behind (grade|in reading|their peers|the class)|weak reader)\b/i;
 
 /* ---- stats: everything below is plain counting ---- */
 function stats(p, now = Date.now()) {

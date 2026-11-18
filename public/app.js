@@ -669,7 +669,7 @@ function dash(extra = '') {
   view(`<header class="top dtop"><b>👩‍🏫 Teacher &amp; Parent Dashboard</b><span class="chip ${AI.on ? 'aion' : ''}">${AI.on ? `✨ AI on · ${esc(AI.provider)}` : 'AI off'}</span><span class="sp"></span><button class="chip" data-a="qaOpen" title="Synthetic test profile, separate from real students">🧪 Open QA Adventurer</button><button class="chip" data-a="home">⬅ Back to app</button></header>
     <div class="card dashc"><h2>🤖 Generative AI</h2>${connect}<div class="row left"><button class="btn ghost" data-a="prompts">🔍 How the AI is prompted</button></div><div id="pr"></div></div>
     <div class="card dashc" id="tcard" aria-live="polite"></div>
-    <div class="card dashc" id="ecard"></div><div class="card dashc" id="pacard"></div><div class="card dashc" id="rcard"></div>
+    <div class="card dashc" id="ecard"></div><div class="card dashc" id="grcard"></div><div class="card dashc" id="excard"></div><div class="card dashc" id="pacard"></div><div class="card dashc" id="rcard"></div>
     <div class="card dashc"><h2>Class overview</h2>
       ${ps.length ? `<div class="scroll"><table class="tbl heat"><tr><th>Student</th>${SKILLS.map(s => `<th title="${s.label}">${s.icon}<br><small>${s.label}</small></th>`).join('')}</tr>
         ${rowsOrdered.map(x => x === 'SEP' ? sepRow : `<tr class="${x.id === dashSel ? 'sel' : ''}"><td><button class="link" data-a="selP" data-id="${x.id}">${x.avatar} ${esc(x.name)} <small>G${x.grade}</small></button></td>${SKILLS.map(s => `<td class="${heat(x.skills[s.id].m)}">${Math.round(x.skills[s.id].m)}</td>`).join('')}</tr>`).join('')}</table></div>
@@ -679,6 +679,8 @@ function dash(extra = '') {
     <div class="card dashc"><h2>${p ? `${p.avatar} ${esc(p.name)} · Grade ${p.grade}` : 'Student detail'}</h2>${detail}</div>
     <p class="center small">All student data stays in this browser. Only grade, level, topic, scores and recent question text are sent to the AI – never names.</p>`, false, true);
   if (T) T.mount();
+  if (G && G.groupMount) G.groupMount();
+  if (G && G.thinkMount) G.thinkMount();
   if (G && G.parentMount) G.parentMount();
 }
 function demo() {

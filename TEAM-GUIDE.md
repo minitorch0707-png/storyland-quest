@@ -43,3 +43,13 @@ Advanced reading passages are in `content.js` (`adv:true`). Each question has `w
 - Local: `python3 server.py` uses `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`, or the `claude` CLI if it is on PATH.
 - Teacher tools send long prompts as `kind: raw`, which a hosted server refuses.
 - Ask Pip is on every screen (floating button) and in battles. Teachers no longer approve a source: Claude can write the passage, and the teacher still reviews every question before a student sees it.
+
+## Shared generation service (`game-gen.js`)
+Register a mode once with `G.gen.register({id, version, build(input), validate(raw, input), normalize?})`, then call `await G.gen.run(id, input, ctx)`.
+It connects the AI if needed, calls `C.aiRaw`, validates, and saves a trace (mode, prompt version, provenance, provider, ms, input, output, checks) to `S.traces`. Modes on it so far: `explain-thinking`, `tricky-practice`, `group-lesson`. Older modes (draft, mini-lesson, story, adapter, recap, tutor) still use their own paths and should be moved over next.
+
+## New in v14
+- **Explain My Thinking** (`game-think.js`): after a correct answer on an item with a reviewed clue, the learner taps a sentence strip (rules judge it) or types an explanation (AI reads it). The score never changes. The verdict suggests next practice; a teacher confirms; the next reading battle reorders its questions (stretch vs revisit).
+- **Reading coach:** tap mode says "You marked N words as tricky"; mic results can be corrected by tapping; "Practice my tricky words" drafts a passage and a question, rules check every target word and the quote, and a second read gives an independent check.
+- **Group lesson drafts** (`game-group.js`): groups come from `summarizeEvidence`; the draft links to attempt ids and shows sparse evidence.
+- **AI setup is adult-only.** Kids see "Pip's AI is resting" and a way to keep playing; keys are entered in Teachers & Parents.
