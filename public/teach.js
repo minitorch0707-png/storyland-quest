@@ -89,7 +89,7 @@ function validateDraft(d, input) {
 Object.assign(window.SQ_ENGINE, { validateDraft, splitSentences });
 window.SQ_TEACH = function install(C) {
   const { S, $, esc, view, art, coin, petHtml, newProfile, togs, sfx, speak, hush, burst, anim, floaty, confetti, flyCoins, countUp, calm, pick, today } = C;
-  const TS = { chg: { idx: 5, text: '', res: null, busy: false, msg: '' }, learner: 'syn-ari', open: false, showEv: false, skill: 'inference_causal', passage: '', appr: false, busy: false, draft: null, review: [], trace: null, msg: '' };
+  const TS = { chg: { idx: 5, text: '', res: null, busy: false, msg: '' }, learner: 'syn-ari', open: false, showEv: false, skill: 'inference_causal', passage: '', appr: true, busy: false, draft: null, review: [], trace: null, msg: '' };
   let BT = null, wired = false;
 
   /* ----- synthetic learners (never real students) ----- */
@@ -158,14 +158,14 @@ window.SQ_TEACH = function install(C) {
     const tele = norm === TELE_NORM;
     return { sents, err, tele, version: tele ? TC.generatorInput.sourceVersion : 'src-' + hash(norm) };
   }
-  const live = () => !!(C.ai().sample || (window.claude && window.claude.use));
+  const live = () => true; /* buttons stay enabled; the first click connects Claude */
   function previewHtml() {
     const pi = passageInfo();
     const list = pi.sents.length ? `<ol class="tg-sents">${pi.sents.map(s => `<li><code>${s.id}</code> ${esc(s.text)}</li>`).join('')}</ol>` : '';
     return `${list}<p class="${pi.err ? 'err' : 'small'}">${pi.err ? esc(pi.err) : `${pi.sents.length} sentences · source version <code>${esc(pi.version)}</code>${pi.tele ? ' · this is the telescope passage' : ''}`}</p>`;
   }
   function btnState() {
-    const pi = passageInfo(), can = !pi.err && TS.appr && !TS.busy;
+    const pi = passageInfo(), can = !pi.err && !TS.busy;
     return { draft: !(can && live()), off: !(can && pi.tele) };
   }
   function buildInput(sentsOver, verOver) {
@@ -179,9 +179,9 @@ window.SQ_TEACH = function install(C) {
       skillId: TS.skill, skillDescription: SKILL_DEFS[TS.skill].desc, evidenceStrength: strength, passage: sentsOver || pi.sents, attempts: att };
   }
   async function sampler() {
-    if (C.ai().sample) return C.ai().sample;
-    if (window.claude && window.claude.use) { try { return await window.claude.use('sample'); } catch (e) { return null; } }
-    return null;
+    if (!C.AI().on) await C.connectAI('');
+    if (!C.AI().on) return null;
+    return { json: async prompt => { const r = await C.aiRaw(prompt); if (r == null) throw { code: 'failed' }; return r; } };
   }
   function finishDraft(raw, input, mode, err) {
     const v = err ? { ok: false, errors: [err] } : validateDraft(raw, input);
@@ -355,6 +355,7 @@ window.SQ_TEACH = function install(C) {
   function genHtml(p, sugg) {
     const bs = btnState(), pi = passageInfo(), ov = sugg && sugg !== TS.skill;
     return `<div class="tg-gen"><h3>Create targeted battle</h3>
+      ${autoHtml(p)}
       <label class="tg-l" for="tg-skill">Reviewed skill</label>
       <select id="tg-skill" class="inp sel" data-f="skill">${Object.entries(SKILL_DEFS).map(([k, v]) => `<option value="${k}" ${k === TS.skill ? 'selected' : ''}>${esc(v.label)}${k === sugg ? ' (suggested by the evidence)' : ''}</option>`).join('')}</select>
       <p class="small">${esc(SKILL_DEFS[TS.skill].desc)}${ov ? ' You are choosing a different skill from the suggestion. That is allowed and is recorded in the trace.' : ''}</p>
@@ -362,7 +363,7 @@ window.SQ_TEACH = function install(C) {
       <textarea id="tg-pass" class="inp area tg-area" data-f="passage" maxlength="1500" placeholder="Paste 4 to 12 sentences…">${esc(TS.passage)}</textarea>
       <div class="row left tight"><button class="btn ghost" data-a="tgSample">Use the telescope passage</button></div>
       <div id="tg-prev">${previewHtml()}</div>
-      <label class="tg-chk"><input type="checkbox" id="tg-appr" data-f="appr" ${TS.appr ? 'checked' : ''}> I approve this text as the only source for these questions.</label>
+      <p class="small">The passage is the only source the questions may use. Claude can write it for you, or you can paste your own (no student names).</p>
       <div class="row left"><button class="btn big" id="tg-draft" data-a="tgDraft" ${bs.draft ? 'disabled' : ''}>Draft two questions with Pip</button>
         <button class="btn ghost" id="tg-off" data-a="tgOffline" ${bs.off ? 'disabled' : ''}>Load offline fixture</button></div>
       <p class="small" id="tg-why">${live() ? 'Live drafting uses your own Claude account and asks for your permission the first time.' : 'Live drafting is not available in this view. The offline fixture only fits the telescope passage.'}</p>
@@ -384,13 +385,14 @@ window.SQ_TEACH = function install(C) {
   function onInput(e) {
     const el = e.target; if (!el.closest || !el.closest('#tcard') || !el.dataset.f) return;
     const f = el.dataset.f, i = +el.dataset.i, r = TS.review[i];
-    if (f === 'passage') { TS.passage = el.value; TS.appr = false; const c = $('#tg-appr'); if (c) c.checked = false; refreshGen(); }
+    if (f === 'passage') { TS.passage = el.value; TS.appr = true; const c = $('#tg-appr'); if (c) c.checked = false; refreshGen(); }
     else if (f === 'appr') { TS.appr = el.checked; refreshGen(); }
     else if (f === 'wq' || f === 'wa' || f === 'wb') { if (TS.lesson) TS.lesson.worked[f === 'wq' ? 'question' : f === 'wa' ? 'answer' : 'because'] = el.value; }
     else if (f === 'sup') { if (TS.lesson && el.checked) TS.lesson.level = el.value; }
     else if (f === 'stintro' || f === 'stname' || f === 'stline' || f === 'stpay') { const sl = TS.story[el.dataset.id], dd = sl && sl.draft; if (dd) { if (f === 'stintro') dd.intro = el.value; else { const c = dd.choices[+el.dataset.k]; if (c) c[f === 'stname' ? 'name' : f === 'stline' ? 'line' : 'payoff'] = el.value; } } }
     else if (f === 'rctext') { if (TS.recap && TS.recap.draft) { TS.recap.draft.claims[+el.dataset.k].text = el.value; TS.recap.edited = true; } }
     else if (f === 'rcnext' || f === 'rcunc') { if (TS.recap && TS.recap.draft) { TS.recap.draft[f === 'rcnext' ? 'next' : 'uncertainty'] = el.value; TS.recap.edited = true; } }
+    else if (f === 'topic') { TS.auto.topic = el.value.replace(/[<>{}]/g, '').slice(0, 40); }
     else if (f === 'adtext') { const r = TS.adapt.res; if (r && r.sents[+el.dataset.k]) r.sents[+el.dataset.k].text = el.value; }
     else if (f === 'chgidx') TS.chg.idx = +el.value;
     else if (f === 'chgtext') TS.chg.text = el.value;
@@ -417,6 +419,25 @@ window.SQ_TEACH = function install(C) {
     return '';
   }
 
+  /* ===== one-click: Claude writes the passage, then drafts the questions from it ===== */
+  const connectBox = () => `<div class="tut-connect"><p><b>Connect Claude to write practice automatically.</b></p>${window.claude && window.claude.use ? '<button class="btn" data-a="tgConnect">Connect to Claude</button> ' : ''}<div class="row tight"><input id="tg-key" class="inp" type="password" autocomplete="off" placeholder="API key (sk-…)" aria-label="API key"><button class="btn ghost" data-a="tgConnect" data-k="1">Connect</button></div></div>`;
+  TS.auto = { topic: '', busy: false, msg: '' };
+  function autoHtml(p) {
+    const A0 = TS.auto, ai = C.AI().on;
+    return `<section class="tg-auto" aria-label="Auto-write practice"><h4>✨ Auto-write practice for ${esc(p.name)}</h4><p class="small">Claude writes a ${esc(gradeBand(p.grade))} passage for the skill below, then drafts a guided and an independent question from it. You review the questions before ${esc(p.name)} sees them.</p>
+      ${ai ? `<label class="tg-l" for="tg-topic">Topic (optional)</label><div class="row tight"><input id="tg-topic" class="inp" data-f="topic" maxlength="40" placeholder="e.g. volcanoes, friendship, robots" value="${esc(A0.topic)}"><button class="btn big" data-a="tgAuto" ${A0.busy || TS.busy ? 'disabled' : ''}>Auto-write passage + questions</button></div>` : connectBox()}
+      ${A0.msg ? `<p class="${A0.busy ? 'small' : 'err'}" role="status">${esc(A0.msg)}</p>` : ''}</section>`;
+  }
+  async function runAuto() {
+    const A0 = TS.auto, p = learner(); if (A0.busy) return;
+    if (!C.AI().on) { const r = await C.connectAI(''); if (!r.ok) { A0.msg = r.error || 'Connect Claude first.'; return render(); } }
+    A0.busy = true; A0.msg = 'Claude is writing a passage…'; render();
+    const raw = await C.aiCall('passage', { grade: p.grade, level: 2, topic: A0.topic, skill: SKILL_DEFS[TS.skill].desc, sentences: 7 });
+    const sents = raw && Array.isArray(raw.sentences) ? raw.sentences.map(x => String(x || '').replace(/\s+/g, ' ').trim()) : [];
+    if (sents.length < 5 || sents.length > 12 || sents.some(x => x.length < 8 || x.length > 300) || sents.join(' ').length > 1500 || /https?:|www\./i.test(sents.join(' '))) { A0.busy = false; A0.msg = raw ? 'The passage did not pass the checks. Try again.' : 'Claude did not answer. Check the connection and try again.'; return render(); }
+    TS.passage = sents.join(' '); TS.appr = true; TS.draft = null; A0.msg = 'Passage written. Now drafting questions…'; render();
+    A0.busy = false; await runLive(); A0.msg = TS.draft && TS.draft.ok ? 'Done. Review the questions below.' : ''; render();
+  }
   /* ===== more Pip modes: mini-lesson, story mission, evidence recap, evaluation log (shared validation + explicit provenance) ===== */
   const MINI_FIX = () => ({ workedExample: { question: 'Why did Rin move the tripod behind a stone wall?', answer: 'The wall kept the air still, so the tripod stopped shaking.',
       because: 'The wind shook the tripod and the moon slid away. Behind the wall the air was still.', citations: [{ sentenceId: 's5', quote: 'When the wind shook the tripod, the moon slid out of view.' }, { sentenceId: 's6', quote: 'where the air was still' }] },
@@ -614,9 +635,10 @@ window.SQ_TEACH = function install(C) {
     tgPick(d) { TS.learner = d.id; TS.draft = null; TS.trace = null; TS.review = []; TS.msg = ''; const ev = evidence(learner()); if (ev.suggested) TS.skill = ev.suggested; sfx.tap(); render(); },
     tgEv() { TS.showEv = !TS.showEv; render(); },
     tgMini(d) { runMini(d.m === 'off'); },
+    tgAuto() { runAuto(); },
     tgAdapt(d) { runAdapt(d.t); },
     async tgConnect(d) { const k = d.k ? ($('#tg-key') || {}).value : ''; const r = await C.connectAI((k || '').trim()); TS.adapt.msg = r.ok ? 'Connected.' : r.error || 'Could not connect.'; render(); },
-    tgAdaptUse() { const r = TS.adapt.res; if (!r || !r.sents) return; TS.passage = r.sents.map(x => x.text.trim()).join(' '); TS.appr = false; TS.draft = null; TS.adapt.msg = 'Loaded as the source passage. Tick the approval, then draft questions.'; TS.adapt.res = null; sfx.ok(); render(); },
+    tgAdaptUse() { const r = TS.adapt.res; if (!r || !r.sents) return; TS.passage = r.sents.map(x => x.text.trim()).join(' '); TS.appr = true; TS.draft = null; TS.adapt.msg = 'Loaded as the source passage. Tick the approval, then draft questions.'; TS.adapt.res = null; sfx.ok(); render(); },
     tgStory(d) { runStory(d.id, d.m === 'off'); },
     tgStoryNo(d) { delete TS.story[d.id]; render(); },
     tgStoryOff(d) { const a = (S.approved || []).find(x => x.id === d.id); if (a) { delete a.story; C.save(); } delete TS.story[d.id]; render(); },
@@ -630,7 +652,7 @@ window.SQ_TEACH = function install(C) {
     tgRev(d) { const c = $('#rv-' + d.id); if (!c || !c.checked) { c && c.focus(); return; } S.reviewed = S.reviewed || {}; S.reviewed[d.id] = { at: Date.now() }; C.save(); sfx.ok(); renderR(); },
     tgUnrev(d) { if (S.reviewed) delete S.reviewed[d.id]; C.save(); renderR(); },
     tgOpen() { TS.open = !TS.open; if (TS.open) { const ev = evidence(learner()); if (ev.suggested) TS.skill = ev.suggested; } render(); },
-    tgSample() { TS.passage = TC.generatorInput.passage.map(s => s.text).join(' '); TS.appr = false; TS.draft = null; render(); },
+    tgSample() { TS.passage = TC.generatorInput.passage.map(s => s.text).join(' '); TS.appr = true; TS.draft = null; render(); },
     tgDraft() { if (!btnState().draft) runLive(); },
     tgOffline() { if (!btnState().off) runOffline(); },
     tgApprove(d) {

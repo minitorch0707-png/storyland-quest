@@ -139,15 +139,16 @@ const sfx = {whoosh:() => noise(), ok:() => { tone([[660,.12],[880,.22]]); tone(
   win:() => tone([[523,.12],[659,.12],[784,.12],[1047,.35]]), coin:() => tone([[988,.07],[1319,.18]], 'square'), hit:() => { tone([[180,.08],[120,.15]], 'sawtooth'); noise(.18, 1800, 200, .12); },
   evolve:() => tone([[392,.12],[523,.12],[659,.12],[784,.12],[1047,.15],[1319,.4]]), chest:() => tone([[440,.1],[554,.1],[659,.1],[880,.3]]), munch:() => tone([[300,.06],[260,.06],[300,.06]])};
 let readTok = 0;
-const canSpeak = () => S.settings.voice && 'speechSynthesis' in window;
+/* Voice: Claude's own voice (tts) on the shared page when the viewer allows it, otherwise the browser's speech engine. */
+let TTS = null; if (window.claude && window.claude.use) window.claude.use('tts').then(t => { TTS = t || null; }).catch(() => {});
+const canSpeak = () => S.settings.voice && (!!TTS || 'speechSynthesis' in window);
+function speakLocal(text, onend) { if (!('speechSynthesis' in window)) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = .88; u.pitch = 1.1; u.lang = 'en-CA'; if (onend) u.onend = onend; speechSynthesis.speak(u); }
 function speak(text, onend) {
-  if (!canSpeak()) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(strip(text)); u.rate = .88; u.pitch = 1.1; u.lang = 'en-CA';
-  if (onend) u.onend = onend;
-  speechSynthesis.speak(u);
+  if (!canSpeak()) return; const t = strip(text).slice(0, 1900);
+  if (TTS) { try { TTS.stop && TTS.stop(); } catch (e) { /* nothing playing */ } TTS.speak(t, {voice:'buttery'}).then(() => onend && onend()).catch(e => { if (!e || !['viewer_stopped', 'busy'].includes(e.code)) speakLocal(t, onend); }); return; }
+  speakLocal(t, onend);
 }
-function hush() { readTok++; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
+function hush() { readTok++; try { TTS && TTS.stop && TTS.stop(); } catch (e) { /* idle */ } if ('speechSynthesis' in window) speechSynthesis.cancel(); }
 const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 function confetti(n = 36, set = ['⭐','🎉','✨','🌟','🎈','💛']) {
   if (calm()) return;
@@ -190,6 +191,13 @@ async function connectAI(key) {
     if (!r.ok) return {ok:false, error:d.error || 'Could not connect.'};
     AI = {on:!!d.ai, provider:d.provider, model:d.model}; return {ok:AI.on};
   } catch (e) { return {ok:false, error:'Run the app with python3 server.py to connect an API key.'}; }
+}
+/* Raw prompt to the connected AI (used by the teacher drafting tools, which build long prompts of their own). */
+async function aiRaw(prompt) {
+  if (!AI.on) return null;
+  if (AI.sample) return await AI.sample.json(prompt, {modelTier:'default', cache:false});
+  const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 90000);
+  try { const r = await fetch('/api/ai', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kind:'raw', params:{prompt}}), signal:ctl.signal}); clearTimeout(to); if (!r.ok) return null; return (await r.json()).data || null; } catch (e) { return null; }
 }
 async function ai(kind, params) {
   if (!AI.on) return null;
@@ -344,6 +352,8 @@ function newP() {
     <label class="lab" for="nm">Your first name or a nickname</label><input id="nm" class="inp" maxlength="14" autocomplete="off" placeholder="Type here…">
     <div class="lab">Pick your picture</div><div class="avs">${AVATARS.map(a => `<button class="av ${a === draft.avatar ? 'on' : ''}" data-a="av" data-v="${a}">${a}</button>`).join('')}</div>
     <div class="lab">What grade are you in?</div><div class="grades">${[1,2,3,4,5,6,7,8].map(g => `<button class="gr ${g === draft.grade ? 'on' : ''}" data-a="gr" data-v="${g}">${g}</button>`).join('')}</div>
+    <details class="optmail"><summary>Parent or guardian email (optional)</summary><p class="small">A grown-up can add an email to get a weekly study update with graphs. You can skip this and add it later. It stays on this device.</p>
+      <label class="lab" for="pe">Parent or guardian email</label><input id="pe" class="inp" type="email" autocomplete="off" placeholder="parent@example.com" value="${esc(draft.pe || '')}"></details>
     <p id="err" class="err" role="alert"></p>
     <div class="row"><button class="btn ghost" data-a="home">Back</button><button class="btn big" data-a="mkP">Let’s go! 🚀</button></div></div>`);
 }
@@ -693,10 +703,11 @@ const ACT = {
   tog(d) { const k = d.k; S.settings[k] = !S.settings[k]; save(); if (k === 'voice' && !S.settings.voice) hush(); applySettings();
     document.querySelectorAll(`[data-k="${k}"]`).forEach(b => { if (k === 'font') b.classList.toggle('on', S.settings.font); else b.textContent = k === 'sound' ? (S.settings.sound ? '🔔' : '🔕') : (S.settings.voice ? '🗣️' : '🤐'); }); sfx.tap(); },
   pickP(d) { S.current = d.id; save(); sfx.tap(); map(); },
-  av(d) { draft.avatar = d.v; draft.name = $('#nm').value; newP(); $('#nm').value = draft.name || ''; },
-  gr(d) { draft.grade = +d.v; draft.name = $('#nm').value; newP(); $('#nm').value = draft.name || ''; },
+  av(d) { draft.avatar = d.v; draft.name = $('#nm').value; draft.pe = ($('#pe') || {value:''}).value; newP(); $('#nm').value = draft.name || ''; },
+  gr(d) { draft.grade = +d.v; draft.name = $('#nm').value; draft.pe = ($('#pe') || {value:''}).value; newP(); $('#nm').value = draft.name || ''; },
   mkP() { const name = $('#nm').value.trim(); if (!name) return $('#err').textContent = 'Type a name or nickname first.'; if (!draft.grade) return $('#err').textContent = 'Tap your grade.';
-    const p = newProfile(name, draft.avatar, draft.grade); S.profiles.push(p); S.current = p.id; save(); sfx.win(); map(); },
+    const pe = ($('#pe') || {value:''}).value.trim(); if (pe && !/^[^@\s<>,;]{1,64}@[^@\s<>,;]{1,120}\.[A-Za-z]{2,}$/.test(pe)) { const d = $('.optmail'); if (d) d.open = true; return $('#err').textContent = 'That email does not look right. Fix it or leave it empty.'; }
+    const p = newProfile(name, draft.avatar, draft.grade); if (pe) { p.parentEmail = pe; p.parentOK = true; } S.profiles.push(p); S.current = p.id; save(); sfx.win(); map(); },
   egg(d) { const p = cur(); p.pets[d.k] = {xp:0, hat:''}; p.pet = d.k; p.petName = PETS[d.k].nick; p.daily = today(); p.coins += 20; save(); sfx.chest(); confetti(20);
     map(`You picked the <b>${PETS[d.k].name} Egg</b>! I named it <b>${p.petName}</b> (you can change that). Here are <b>20 🪙</b> to start. Win a battle to hatch it!`); },
   trick() { const p = cur(), el = $('.petbig .pet'); anim(el, pick(['spin','jump','wiggle']), 800); sfx.pop(); floaty('❤️', el);
@@ -852,7 +863,7 @@ const ACT = {
 function leadInst(p) { return G ? (G.lead(p) || p.zoo[0] || null) : null; }
 function leadName(p) { const z = leadInst(p); return z ? z.name : (p.petName || 'your pet'); }
 function heroDesc(p) { const z = leadInst(p); if (z) return `${z.name}, a ${G.STAGE_NAME[G.stageOf(z)].toLowerCase()} ${G.FAM[z.fam].name.toLowerCase()}`; return `${p.petName}, a ${STAGE[stage(petOf(p).xp)].toLowerCase()} ${PETS[p.pet].name.toLowerCase()}`; }
-const CTX = { aiCall: (k, p) => ai(k, p), connectAI, S, $, esc, view, art, coin, newProfile, togs, sfx, speak, hush, canSpeak, burst, anim, floaty, confetti, flyCoins, countUp, calm, pick, shuffle, clamp, today, save, cur, fix, lvl, LV, SKILLS, makeItems, bankStory, record,
+const CTX = { aiCall: (k, p) => ai(k, p), aiRaw, connectAI, S, $, esc, view, art, coin, newProfile, togs, sfx, speak, hush, canSpeak, burst, anim, floaty, confetti, flyCoins, countUp, calm, pick, shuffle, clamp, today, save, cur, fix, lvl, LV, SKILLS, makeItems, bankStory, record,
   applySettings, home, dash: () => dash(), ACT, AI: () => AI, ASSETS: () => ASSETS, audio: () => (ac = ac || new (window.AudioContext || window.webkitAudioContext)()) };
 if (window.SQ_GAME) { G = window.SQ_GAME(CTX); Object.assign(ACT, G.actions); }
 window.SQ_G = G; /* test hook */

@@ -37,3 +37,9 @@ The tutor, adapter, fluency coach and report notes call `C.aiCall(kind, params)`
 
 ## Grades 7-8
 Advanced reading passages are in `content.js` (`adv:true`). Each question has `why` (why each wrong choice is tempting) and `quote` (the deciding sentence) so the tutor can teach, not just score.
+
+## Connecting AI
+- Shared Claude page: Ask Pip and the teacher tools connect to the viewer's own Claude account automatically (`sample`); read-aloud uses Claude's voice (`tts`). Publish with `capabilities: {sample:{}, tts:{}}`.
+- Local: `python3 server.py` uses `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`, or the `claude` CLI if it is on PATH.
+- Teacher tools send long prompts as `kind: raw`, which a hosted server refuses.
+- Ask Pip is on every screen (floating button) and in battles. Teachers no longer approve a source: Claude can write the passage, and the teacher still reviews every question before a student sees it.
