@@ -139,16 +139,23 @@ const sfx = {whoosh:() => noise(), ok:() => { tone([[660,.12],[880,.22]]); tone(
   win:() => tone([[523,.12],[659,.12],[784,.12],[1047,.35]]), coin:() => tone([[988,.07],[1319,.18]], 'square'), hit:() => { tone([[180,.08],[120,.15]], 'sawtooth'); noise(.18, 1800, 200, .12); },
   evolve:() => tone([[392,.12],[523,.12],[659,.12],[784,.12],[1047,.15],[1319,.4]]), chest:() => tone([[440,.1],[554,.1],[659,.1],[880,.3]]), munch:() => tone([[300,.06],[260,.06],[300,.06]])};
 let readTok = 0;
-/* Voice: Claude's own voice (tts) on the shared page when the viewer allows it, otherwise the browser's speech engine. */
-let TTS = null; if (window.claude && window.claude.use) window.claude.use('tts').then(t => { TTS = t || null; }).catch(() => {});
-const canSpeak = () => S.settings.voice && (!!TTS || 'speechSynthesis' in window);
-function speakLocal(text, onend) { if (!('speechSynthesis' in window)) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = .88; u.pitch = 1.1; u.lang = 'en-CA'; if (onend) u.onend = onend; speechSynthesis.speak(u); }
-function speak(text, onend) {
-  if (!canSpeak()) return; const t = strip(text).slice(0, 1900);
-  if (TTS) { try { TTS.stop && TTS.stop(); } catch (e) { /* nothing playing */ } TTS.speak(t, {voice:'buttery'}).then(() => onend && onend()).catch(e => { if (!e || !['viewer_stopped', 'busy'].includes(e.code)) speakLocal(t, onend); }); return; }
-  speakLocal(t, onend);
+/* Voice: one consistent British male voice from the browser's speech engine, so Pip never switches between voices. */
+const FEMALE = /female|samantha|karen|moira|tessa|fiona|serena|kate|susan|victoria|zira|hazel|libby|sonia|amy|emma|joanna|salli|kendra|ivy|allison|ava|nicky|martha|stephanie|catherine|shelley|sandy|flo\b|grandma/i;
+const PREFER = [/daniel/i, /google uk english male/i, /arthur/i, /oliver/i, /ryan/i, /george/i, /\bmale\b/i];
+let VOICE = null;
+function pickVoice() {
+  if (!('speechSynthesis' in window)) return null; const vs = speechSynthesis.getVoices(); if (!vs.length) return VOICE;
+  const gb = vs.filter(v => /^en[-_]GB/i.test(v.lang)), male = gb.filter(v => !FEMALE.test(v.name));
+  for (const re of PREFER) { const v = male.find(x => re.test(x.name)) || vs.find(x => /^en/i.test(x.lang) && re.test(x.name) && !FEMALE.test(x.name)); if (v) return (VOICE = v); }
+  return (VOICE = male[0] || gb[0] || vs.find(x => /^en/i.test(x.lang) && !FEMALE.test(x.name)) || vs.find(x => /^en/i.test(x.lang)) || null);
 }
-function hush() { readTok++; try { TTS && TTS.stop && TTS.stop(); } catch (e) { /* idle */ } if ('speechSynthesis' in window) speechSynthesis.cancel(); }
+if ('speechSynthesis' in window) { speechSynthesis.onvoiceschanged = () => pickVoice(); pickVoice(); }
+const canSpeak = () => S.settings.voice && 'speechSynthesis' in window;
+function speak(text, onend) {
+  if (!canSpeak()) return; const t = strip(text).slice(0, 1900); speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(t), v = VOICE || pickVoice(); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-GB'; u.rate = .92; u.pitch = 1; if (onend) u.onend = onend; speechSynthesis.speak(u);
+}
+function hush() { readTok++; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
 const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 function confetti(n = 36, set = ['⭐','🎉','✨','🌟','🎈','💛']) {
   if (calm()) return;

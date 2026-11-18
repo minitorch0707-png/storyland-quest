@@ -17,7 +17,17 @@ const phaseOf = c => (!c ? 'question' : ['ready', 'casting', 'victory', 'claimed
 const ctxNow = () => (G.btx && G.btx.ctx()) || null;
 const voiceOn = () => S.settings.tutorVoice !== false;
 
-G.tutorBtn = it => (it && !it.tiles && it.opts ? '<button class="bagb tutb" data-a="tutOpen" aria-haspopup="dialog">🦊<span>Ask Pip</span></button>' : '');
+const BONUS = 5, DAILY_BONUS = 30;
+G.TUTOR_BONUS = BONUS;
+G.tutorBtn = it => (it && !it.tiles && it.opts ? '<button class="tutb" data-a="tutOpen" aria-haspopup="dialog" aria-label="Ask Pip for help">🦊 Ask Pip</button>' : '');
+G.tutorHelpBtn = it => (it && !it.tiles && it.opts ? `<button class="btn big pipask" data-a="tutOpen" aria-haspopup="dialog">🦊 Ask Pip <small>+${BONUS} 🪙 when you work it out</small></button>` : '');
+/* Asking Pip is never a penalty. If you miss, ask Pip, and then work it out yourself, you earn a few coins (a daily cap stops farming). */
+const helped = new Set();
+G.tutorBonus = (qid, att) => { const p = C.cur(); if (!p || !att.correct || att.attempt < 2 || !helped.has(qid)) return '';
+  helped.delete(qid); const day = C.today(); p.tutorBonus = p.tutorBonus && p.tutorBonus.day === day ? p.tutorBonus : { day, coins: 0 };
+  if (p.tutorBonus.coins + BONUS > DAILY_BONUS) return 'You worked it out with Pip’s help! (Today’s Pip bonus is used up.)';
+  p.tutorBonus.coins += BONUS; p.coins += BONUS; p.tutorLog = [...(p.tutorLog || []), { at: Date.now(), qid, mode: 'bonus', bonus: BONUS }].slice(-200); C.save();
+  if (G.fx && $('#fme')) G.fx.number(`+${BONUS} 🪙`, $('#fme'), 'good'); return `Pip bonus: +${BONUS} 🪙 for working it out with help!`; };
 
 /* ---- checks on every reply: nothing unsupported, answer-leaking or off-topic is shown ---- */
 function okReply(r, c) {
@@ -74,6 +84,7 @@ async function ask(text) {
   T.busy = false;
   if (okReply(raw, c)) {
     T.turns.push({ role: 'pip', text: String(raw.reply).trim(), quote: raw.quote || '', check: raw.check || '', mode: 'ai' });
+    if (c && phaseOf(c) === 'retry') helped.add(c.qid);
     if (p) { p.tutorLog = [...(p.tutorLog || []), { at: Date.now(), qid: c ? c.qid : 'free', ask: clean.slice(0, 120), mode: 'ai', phase: phaseOf(c) }].slice(-200); C.save(); }
     if (voiceOn()) { const last = T.turns[T.turns.length - 1]; speak(last.text + (last.check ? ' ' + last.check : '')); }
   } else { T.turns.pop(); T.msg = raw ? 'Pip could not give a safe answer to that. Try asking it another way.' : 'Pip could not reach Claude. Check the connection and try again.'; }

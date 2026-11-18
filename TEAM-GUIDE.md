@@ -53,3 +53,8 @@ It connects the AI if needed, calls `C.aiRaw`, validates, and saves a trace (mod
 - **Reading coach:** tap mode says "You marked N words as tricky"; mic results can be corrected by tapping; "Practice my tricky words" drafts a passage and a question, rules check every target word and the quote, and a second read gives an independent check.
 - **Group lesson drafts** (`game-group.js`): groups come from `summarizeEvidence`; the draft links to attempt ids and shows sparse evidence.
 - **AI setup is adult-only.** Kids see "Pip's AI is resting" and a way to keep playing; keys are entered in Teachers & Parents.
+
+## Polish v15
+- Battle uses a two-column layout on screens 900px and wider (passage left, question right) so it fits without scrolling at 1280x720. Ask Pip sits beside the question; the item bag is an even three-column grid.
+- Pip bonus: after a wrong answer, asking Pip and then working it out earns +5 coins (max 30 a day). Asking is never penalised and evidence rules are unchanged. See `G.tutorBonus` in `game-tutor.js`.
+- Voice: one British male voice from the browser's speech engine (`pickVoice` in `app.js`), no switching to other voices.

@@ -144,7 +144,7 @@ function fbHtml(it) {
   if (ph === 'retry') {
     const why = fb ? esc(fb[BT.picked] || '') : (it.hint ? '💡 ' + esc(it.hint) : '');
     const can = BT.tries >= 2 && replacement(it, true), ex = BT.tries >= 2 ? worked(it) : '';
-    return `<div class="fb warn"><div><b>Not quite.</b> ${why}${ex}</div><div class="row tight"><button class="btn big" data-a="bRetry">Try again</button>${can ? '<button class="btn ghost" data-a="bNew">Try a new question</button>' : ''}</div></div>`;
+    return `<div class="fb warn"><div><b>Not quite.</b> ${why}${ex}</div><div class="row tight"><button class="btn big" data-a="bRetry">Try again</button>${G.tutorHelpBtn ? G.tutorHelpBtn(it) : ''}${can ? '<button class="btn ghost" data-a="bNew">Try a new question</button>' : ''}</div></div>`;
   }
   if (ph === 'question' && BT.hint) return `<div class="fb ok"><div><b>Clue Lantern:</b> ${esc(it.hint || 'Read it again slowly and look for a clue.')}<br><small>This turn is marked as helped.</small></div></div>`;
   if (ph === 'ready' || ph === 'casting') return `<div class="fb good"><div><b>Yes!</b> ${fb ? esc(fb[it.correctId] || '') : (it.explain || '')}${it.cites ? '<br><small>The highlighted words in the passage are the clue.</small>' : ''}${G.thinkBtn ? G.thinkBtn(it) : ''}${BT.spec.practice && s.attempts.filter(a => a.turn === s.turn).length > 1 ? '<br><small>You got it after a clue, so Pip counts this one as “after help”. A fresh question comes next.</small>' : ''}</div></div>`;
@@ -165,12 +165,12 @@ function sheet() {
 }
 function qHtml() {
   const it = curItem(), s = BT.state, can = s.phase === 'question';
-  const stem = `<div class="q"><h2>${it.prompt}</h2><button class="say" data-a="bReadQ">🔊 Read it to me</button></div>`;
+  const stem = `<div class="q"><h2>${it.prompt}</h2><div class="qtools"><button class="say" data-a="bReadQ">🔊 Read it to me</button>${G.tutorBtn ? G.tutorBtn(it) : ''}</div></div>`;
   const body = it.tiles ? tilesHtml(it) : `<div class="opts bt-opts">${it.opts.map((o, n) => { const out = s.out.includes(o.id), right = ['ready', 'casting', 'victory', 'claimed'].includes(s.phase) && o.id === it.correctId;
     return `<button class="opt c${n % 4} ${right ? 'right' : ''} ${out ? 'wrong' : ''}" data-a="bAns" data-id="${o.id}" ${!can || out ? 'disabled' : ''}><span class="ltr">${'ABCD'[n] || n + 1}</span><span class="otx">${it.raw === false ? esc(o.text) : esc(o.text)}</span></button>`; }).join('')}</div>`;
   const bag = [['bClue', 'clue_lantern', '🔦', 'Clue Lantern', s.bag.clue], ['bLook', 'item_second_look', '👀', 'Second Look', s.bag.look], ['bBubble', 'item_bubble_guard', '🫧', 'Bubble Guard', s.bag.bubble]]
     .map(([a, im, em, t, n]) => `<button class="bagb ${can && n ? '' : 'off'}" data-a="${a}" aria-disabled="${!(can && n)}">${art(im, em, 'mi')}<span>${t} ×${n}</span></button>`).join('');
-  return `${stem}${body}<div class="bt-bag" role="group" aria-label="Battle Bag">${bag}${G.tutorBtn ? G.tutorBtn(it) : ''}</div><div id="bt-fb" aria-live="polite">${s.phase === 'victory' || s.phase === 'claimed' ? '' : fbHtml(it)}</div>${s.phase === 'victory' ? chestHtml() : ''}`;
+  return `${stem}${body}<div class="bt-bag" role="group" aria-label="Battle Bag">${bag}</div><div id="bt-fb" aria-live="polite">${s.phase === 'victory' || s.phase === 'claimed' ? '' : fbHtml(it)}</div>${s.phase === 'victory' ? chestHtml() : ''}`;
 }
 function chestHtml() {
   const t = BT.spec.boss ? 'boss' : BT.spec.source === 'daily' ? 'daily' : 'standard';
@@ -241,7 +241,7 @@ function wrongFx() { snd('answer-retry'); BT.lastAbs = BT.state.absorbed; BT.sho
 A.bAns = d => {
   if (!BT || BT.busy) return; const it = curItem(); if (!step('answer', { optionId: d.id })) return; hush();
   const att = BT.state.attempts[BT.state.attempts.length - 1]; persist(att, it); BT.hint = false; BT.tries = (BT.tries || 0) + (att.correct ? 0 : 1);
-  if (att.correct) { BT.msg = ''; if (att.attempt === 1) BT.firsts++; if (att.assisted) BT.assistedN++; snd('answer-correct'); setTimeout(() => snd('move-ready'), 250); G.spr.cheer($('#fme')); G.fx.impact('comet-dust', $('#fme'), .5); }
+  if (att.correct) { BT.msg = ''; if (att.attempt === 1) BT.firsts++; if (att.assisted) BT.assistedN++; snd('answer-correct'); setTimeout(() => snd('move-ready'), 250); G.spr.cheer($('#fme')); G.fx.impact('comet-dust', $('#fme'), .5); if (G.tutorBonus) { const m = G.tutorBonus(it.qid, att); if (m) BT.msg = m; } }
   else { BT.picked = d.id; const t = wrongFx(); BT.msg = t; enemyStrike(); }
   paint();
 };

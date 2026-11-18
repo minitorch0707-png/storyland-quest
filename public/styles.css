@@ -541,3 +541,32 @@ pre{background:#1f1b3a;color:#e8e5ff;border-radius:14px;padding:14px;white-space
 .optmail{margin:8px 0}.optmail summary{cursor:pointer;font-weight:600}.tg-auto{border:2px solid #b9a6e8;border-radius:12px;padding:10px;margin:8px 0;background:#f6f1ff}
 .exstrips{display:grid;gap:8px;margin:8px 0}.exs{text-align:left;white-space:normal;font-weight:500}
 .aimode{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#eee8d8;color:#6b6280;white-space:nowrap}.aimode.on{background:#e3f6ea;color:#1f7a45}
+
+/* ===== polish v15: battle fits the screen, Ask Pip is prominent, pet card is centred ===== */
+.petcard.slim{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:14px;max-width:460px;margin:14px auto 8px;padding:10px 18px;border-width:4px;border-radius:24px;text-align:left}
+.petcard.slim .petbox{flex:0 0 auto;width:72px;height:72px;display:flex;align-items:center;justify-content:center}.petcard.slim .petbox .pet,.petcard.slim .petbox img{max-height:72px;width:auto}
+.petcard.slim>span:last-child{display:flex;flex-direction:column;align-items:flex-start;gap:2px}.petcard.slim b{font-size:1.25rem}.petcard.slim small{display:block;font-size:.9rem;opacity:.75}
+.worlds{justify-content:center}
+.qtools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tutb{display:inline-flex;align-items:center;gap:6px;background:#7b4bd6;color:#fff;border:0;border-radius:999px;padding:8px 16px;font:700 1rem Fredoka,system-ui,sans-serif;box-shadow:0 3px 0 #4f2da0;cursor:pointer;min-height:44px}
+.tutb:focus-visible{outline:3px solid #ffd86b;outline-offset:2px}
+.pipask{background:#7b4bd6 !important;color:#fff !important;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}.pipask small{font-weight:600;background:#fff3c4;color:#4f2da0;border-radius:999px;padding:2px 10px}
+.bt-bag{display:grid !important;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.bt-bag .bagb{justify-content:center;min-width:0;padding:4px 8px 4px 6px;font-size:.92rem}.bt-bag .bagb span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bt-q .q{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}.bt-q .q h2{flex:1 1 260px;margin:0}
+@media (min-width:900px){
+  .btshell{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);grid-template-areas:"pin pin" "pass q";gap:10px 14px;align-items:start}
+  .btshell>.bt-pin{grid-area:pin;margin:0}.btshell>#bt-pass{grid-area:pass;margin:0;max-height:calc(100vh - 340px);min-height:220px;overflow:auto}
+  .btshell>#bt-q{grid-area:q;margin:0;padding:12px 16px}
+  .bt-pin .arena.stage{height:clamp(170px,27vh,250px)}
+  .bt-q .bt-opts{grid-template-columns:1fr 1fr}.bt-opts .opt{min-height:56px}
+  .bt-pass .bt-text{font-size:1.05rem;line-height:1.7}
+}
+@media (min-width:900px) and (max-height:760px){.btshell>#bt-pass{max-height:calc(100vh - 310px)}.bt-pin .arena.stage{height:clamp(160px,25vh,210px)}}
+@media (max-width:899px){.bt-bag{grid-template-columns:repeat(3,minmax(0,1fr))}.bt-bag .bagb .art{font-size:1.4rem}.bt-bag .bagb span{font-size:.8rem}}
+@media (min-width:900px){.bt-pin .arena.stage{min-height:0}body:has(#btshell) header{padding-top:4px;padding-bottom:4px;margin-bottom:4px}body:has(#btshell) header .brand,body:has(#btshell) header h1{font-size:1rem}}
+header.top.slim .sp{height:0;min-height:0;flex:1 1 0}
+#app:has(#btshell){padding-top:6px;padding-bottom:16px}
+@media (min-width:900px){.btshell>#bt-pass{max-height:calc(100vh - 336px)}}
+.qtools .tutb{font-size:1.08rem;padding:10px 20px;box-shadow:0 4px 0 #4f2da0,0 0 0 3px #e7dcff}
+@media (prefers-reduced-motion:no-preference){.qtools .tutb{animation:pipwob 3.4s ease-in-out infinite}}
+.demofab{top:calc(62px + env(safe-area-inset-top,0px))}
