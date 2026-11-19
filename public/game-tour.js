@@ -363,7 +363,7 @@ S_({ id: 'bt-unlock', ch: 'battles', title: 'Next chapter unlocked',
 /* ---------- 3. Ask Pip ---------- */
 const PIPQ = 'Why is my answer wrong? Give me a hint, but don’t tell me the answer.';
 async function askPipFlow(X) {
-  for (let n = 0; n < 2 && !el('#tut-in'); n++) { await X.press('#bt-fb [data-a=tutOpen]', { pre: 700 }); await X.sleep(700); }
+  for (let n = 0; n < 2 && !el('#tut-in'); n++) { await X.press('#bt-fb [data-a=tutOpen], [data-a=tutOpen]', { pre: 700, wait: 9000 }); await X.sleep(700); }
   await X.type('#tut-in', PIPQ, 30); await X.sleep(500);
   await X.press('[data-a=tutSend]', { pre: 500 });
   await X.until(() => el('.tut-pip') || el('.tut-log .small[role=status]'), 25000);
@@ -395,7 +395,7 @@ S_({ id: 'pip-fresh', ch: 'pip', title: 'A fresh question next', ai: 'rules',
 S_({ id: 'pip-qonly', ch: 'pip', title: 'Beyond passages', ai: true,
   say: 'Pip also works on questions with no passage, such as vocabulary. It then explains the rule behind the question using only the question, options and the student\'s choice.',
   ensure: async X => { needMaya(); X.closeAll(); await leave(X); G.map(); await X.until(() => el('.trail,.isles')); A.gBattle({ id: 'jungle', src: 'island' }); await X.until(() => live() && ph() === 'question', 9000); },
-  act: async X => { await answer(X, false); await X.until(() => ph() === 'retry', 6000); await X.sleep(900); await X.press('#bt-fb [data-a=tutOpen]', { pre: 600 }); await X.type('#tut-in', PIPQ, 40); await X.press('[data-a=tutSend]'); await X.until(() => el('.tut-pip') || el('.tut-log .small[role=status]'), 25000); const r = el('.tut-pip'); if (r) await X.look(r, true); await X.sleep(1500); },
+  act: async X => { await answer(X, false); await X.until(() => ph() === 'retry', 6000); await X.sleep(900); await X.press('#bt-fb [data-a=tutOpen], [data-a=tutOpen]', { pre: 600, wait: 9000 }); await X.type('#tut-in', PIPQ, 40); await X.press('[data-a=tutSend]'); await X.until(() => el('.tut-pip') || el('.tut-log .small[role=status]'), 25000); const r = el('.tut-pip'); if (r) await X.look(r, true); await X.sleep(1500); },
   expect: () => el('.tut-pip'), wait: 26000, hold: 500 });
 
 /* ---------- 4. Explain My Thinking ---------- */
