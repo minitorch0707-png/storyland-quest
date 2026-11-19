@@ -78,7 +78,7 @@ function load() {
   try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && Array.isArray(s.profiles)) return s; } catch (e) {}
   return {profiles:[], current:null, settings:{sound:true, voice:true, font:false}};
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+function save() { if (window.SQ_NOSAVE) return; /* the automated demo runs in a throw-away session */ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 function fix(p) { // fill in fields added by newer versions
   if (!p) return p;
   p.coins = p.coins || 0; p.inv = p.inv || ['sky']; p.pets = p.pets || {}; p.pet = p.pet || ''; p.petName = p.petName || '';
@@ -151,9 +151,9 @@ function pickVoice() {
 }
 if ('speechSynthesis' in window) { speechSynthesis.onvoiceschanged = () => pickVoice(); pickVoice(); }
 const canSpeak = () => S.settings.voice && 'speechSynthesis' in window;
-function speak(text, onend) {
+function speak(text, onend, rate) {
   if (!canSpeak()) return; const t = strip(text).slice(0, 1900); speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(t), v = VOICE || pickVoice(); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-GB'; u.rate = .92; u.pitch = 1; if (onend) u.onend = onend; speechSynthesis.speak(u);
+  const u = new SpeechSynthesisUtterance(t), v = VOICE || pickVoice(); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-GB'; u.rate = rate || .92; u.pitch = 1; if (onend) u.onend = onend; speechSynthesis.speak(u);
 }
 function hush() { readTok++; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
 const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -201,13 +201,21 @@ async function connectAI(key) {
 }
 /* Raw prompt to the connected AI (used by the teacher drafting tools, which build long prompts of their own). */
 async function aiRaw(prompt) {
-  if (!AI.on) return null;
+  if (AI.fixture && window.SQ_FIX) return window.SQ_FIX.raw(prompt, () => aiRawLive(prompt));
+  return aiRawLive(prompt);
+}
+async function aiRawLive(prompt) {
+  if (!AI.on || (AI.fixture && !AI.live)) return null;
   if (AI.sample) return await AI.sample.json(prompt, {modelTier:'default', cache:false});
   const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 90000);
   try { const r = await fetch('/api/ai', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kind:'raw', params:{prompt}}), signal:ctl.signal}); clearTimeout(to); if (!r.ok) return null; return (await r.json()).data || null; } catch (e) { return null; }
 }
 async function ai(kind, params) {
-  if (!AI.on) return null;
+  if (AI.fixture && window.SQ_FIX) return window.SQ_FIX.ai(kind, params, () => aiLive(kind, params));
+  return aiLive(kind, params);
+}
+async function aiLive(kind, params) {
+  if (!AI.on || (AI.fixture && !AI.live)) return null;
   if (AI.sample) { // shared page: ask Claude through the viewer's own account
     try { return await AI.sample.json(window.SQ_PROMPTS.build(kind, params), {modelTier:QUICK.includes(kind) ? 'quick' : 'default', cache:false}); }
     catch (e) { if (e && ['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed'].includes(e.code)) AI = {on:false, provider:'', model:''}; return null; }
@@ -673,7 +681,7 @@ function dash(extra = '') {
     : `<p><b>AI is not connected</b>, so the app is using its built-in content. Paste an API key to switch on the AI features. The key is saved only on this computer (in <code>.env</code>).</p>
       <div class="row left"><select id="kp" class="inp sel" aria-label="AI provider"><option value="anthropic">Claude (Anthropic)</option><option value="openai">ChatGPT (OpenAI)</option><option value="gemini">Gemini (Google)</option></select>
       <input id="kk" class="inp keyin" type="password" autocomplete="off" placeholder="Paste API key" aria-label="API key"><button class="btn big" data-a="connect">Connect</button></div><p id="kerr" class="err" role="alert"></p>`;
-  view(`<header class="top dtop"><b>👩‍🏫 Teacher &amp; Parent Dashboard</b><span class="chip ${AI.on ? 'aion' : ''}">${AI.on ? `✨ AI on · ${esc(AI.provider)}` : 'AI off'}</span><span class="sp"></span><button class="chip" data-a="qaOpen" title="Synthetic test profile, separate from real students">🧪 Open QA Adventurer</button><button class="chip" data-a="home">⬅ Back to app</button></header>
+  view(`<header class="top dtop"><b>👩‍🏫 Teacher &amp; Parent Dashboard</b><span class="chip ${AI.on ? 'aion' : ''}">${AI.on ? `✨ AI on · ${esc(AI.provider)}` : 'AI off'}</span><span class="sp"></span><button class="chip" data-a="tourMenu" title="A narrated, automatic tour of the whole prototype">▶ Demo run-through</button><button class="chip" data-a="qaOpen" title="Synthetic test profile, separate from real students">🧪 Open QA Adventurer</button><button class="chip" data-a="home">⬅ Back to app</button></header>
     <div class="card dashc"><h2>🤖 Generative AI</h2>${connect}<div class="row left"><button class="btn ghost" data-a="prompts">🔍 How the AI is prompted</button></div><div id="pr"></div></div>
     <div class="card dashc" id="tcard" aria-live="polite"></div>
     <div class="card dashc" id="ecard"></div><div class="card dashc" id="grcard"></div><div class="card dashc" id="excard"></div><div class="card dashc" id="pacard"></div><div class="card dashc" id="rcard"></div>

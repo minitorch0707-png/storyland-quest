@@ -43,6 +43,7 @@ function drawerHtml() {
   const wstate = id => { const ds = D.destinations.filter(d => d.subject === id); if (ds.some(_dp)) return 'Reviewed (open)'; return ds.every(d => (p.demoWorlds || {})[d.id]) ? 'Demo preview (synthetic)' : 'Closed'; };
   return `<div class="dm-head"><b>Demo Controls</b><span class="qabadge">QA · synthetic</span><button class="btn sm ghost" data-a="dmClose" id="dm-close" aria-label="Close Demo Controls">✕ Close</button></div>
   <p class="small dm-note">Works on the synthetic QA adventurer only. Simulated actions are tagged and never counted as learner answers.</p>
+  ${G.tourMenuHtml ? G.tourMenuHtml() : ''}
   <details open><summary>Presets</summary><div class="dm-row"><button class="btn sm" data-a="dmPre" data-k="tutor">AI Tutor Demo</button><button class="btn sm" data-a="dmPre" data-k="show">Showcase</button><button class="btn sm" data-a="dmPre" data-k="fresh">Fresh Start (egg)</button></div>
     <div class="dm-row"><button class="btn sm ghost" data-a="dmReset">Reset synthetic default</button><button class="btn sm ghost" data-a="qaDash">⬅ Dashboard</button></div></details>
   <details><summary>Wallet and inventory</summary>

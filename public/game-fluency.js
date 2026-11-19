@@ -52,7 +52,7 @@ function view() {
     <div id="flprac">${pracHtml()}</div>
     <div class="row"><button class="btn" data-a="flAgain">Read another</button>${n ? `<button class="btn" data-a="flPractice" ${R.pbusy ? 'disabled' : ''}>✨ Practice my tricky words</button><button class="btn" data-a="flSay">🔊 Hear the tricky words</button>` : ''}<button class="btn ghost" data-a="gMap">Done</button></div></main>`, false, true);
 }
-const coachHtml = c => `<p>${esc(c.praise)}</p><p>${esc(c.tip)}</p>${c.practice ? `<p><b>Try this:</b> “${esc(c.practice)}” <button class="btn sm ghost" data-a="flSayP">🔊</button></p>` : ''}<small class="tut-tag">${c.ai ? 'AI note · written from the counts above' : 'Counts-based note (AI is off)'}</small>`;
+const coachHtml = c => `<p>${esc(c.praise)}</p><p>${esc(c.tip)}</p>${c.practice ? `<p><b>Try this:</b> “${esc(c.practice)}” <button class="btn sm ghost" data-a="flSayP">🔊</button></p>` : ''}<small class="tut-tag">${c.ai ? (c.fix ? 'Authored demo fixture · written from the counts above' : 'AI note · written from the counts above') : 'Counts-based note (AI is off)'}</small>`;
 function okCoach(c, missed) { const l = (v, m) => typeof v === 'string' && v.length >= 3 && v.length <= m; if (!c || !l(c.praise, 160) || !l(c.tip, 200)) return false; if (c.practice && (typeof c.practice !== 'string' || c.practice.split(/\s+/).length > 14)) return false; if (/https?:|www\./i.test(JSON.stringify(c))) return false; void missed; return true; }
 function ruleCoach(s, missed) {
   return { ai: false, praise: s.pct >= 90 ? 'You read that very smoothly. Keep going!' : s.pct >= 70 ? 'You read most of the words well. That takes practice.' : 'Thank you for trying. Reading aloud is brave.',
@@ -62,7 +62,7 @@ async function finish(marks, ms, manual) {
   const p = C.cur(), s = score(R.words, marks, ms), missed = R.words.filter((w, i) => marks[i] !== 'ok').map(w => w.replace(/[^\w'’-]/g, ''));
   Object.assign(R, { stage: 'done', marks, score: s, manual: !!manual, coach: null }); p.fluency = [...(p.fluency || []), { at: Date.now(), total: s.total, ok: s.ok, wcpm: manual ? null : s.wcpm, missed: missed.slice(0, 8), manual: !!manual }].slice(-60); C.save(); view();
   let coach = null;
-  if (C.AI().on) { const raw = await C.aiCall('fluency', { grade: p.grade, level: 2, wcpm: manual ? 0 : s.wcpm, correct: s.ok, total: s.total, missed: missed.slice(0, 8) }); if (okCoach(raw, missed)) coach = { ai: true, praise: raw.praise, tip: raw.tip, practice: raw.practice || '' }; }
+  if (C.AI().on) { const raw = await C.aiCall('fluency', { grade: p.grade, level: 2, wcpm: manual ? 0 : s.wcpm, correct: s.ok, total: s.total, missed: missed.slice(0, 8) }); if (okCoach(raw, missed)) coach = { ai: true, fix: C.AI().src === 'fixture', praise: raw.praise, tip: raw.tip, practice: raw.practice || '' }; }
   R.coach = coach || ruleCoach(s, missed); const el = $('#flcoach'); if (el) el.innerHTML = coachHtml(R.coach);
 }
 A.flStart = () => { const p = C.cur(); R = { words: pickSentence(p).split(/\s+/), stage: 'ready', manual: false, tap: new Set(), msg: '' }; view(); };

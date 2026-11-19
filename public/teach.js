@@ -127,7 +127,7 @@ window.SQ_TEACH = function install(C) {
     const all = summarizeEvidence(p.attempts || [], { now: Date.now() });
     const focus = all.find(s => s.status === 'suggest-practice') || all[0] || null;
     const counted = new Set(all.flatMap(s => s.evidence.map(e => s.skillId + '|' + e.itemId)));
-    return { all, focus, counted, suggested: focus && focus.status === 'suggest-practice' ? focus.skillId : null };
+    return { all, focus, counted, suggested: focus && focus.status === 'suggest-practice' && SKILL_DEFS[focus.skillId] ? focus.skillId : null };
   }
   function evidenceHtml(p) {
     const ev = evidence(p), f = ev.focus, label = f ? (SKILL_DEFS[f.skillId] || { label: f.skillId }).label : 'No attempts yet';
@@ -568,8 +568,8 @@ window.SQ_TEACH = function install(C) {
     const ev = t => t.eval || {}, q = t => (t.validation && t.validation.ok ? (t.output && t.output.items ? t.output.items.reduce((n, i) => n + ((i.citations || []).length), 0) : 0) : 0);
     return `<details class="tg-change" ${rows.length ? 'open' : ''}><summary>Evaluation log: fixed bank vs generated (real runs only)</summary>
       <p class="small">One row per draft actually run. Automatic columns come from the checks; the three judgement columns are yours. Review seconds start when the draft appears and stop at the first approval. Prototype evidence only: it says nothing about learning gains.</p>
-      ${rows.length ? `<div class="scroll"><table class="tbl tg-tbl"><tr><th>When</th><th>Source</th><th>Mode</th><th>Checks</th><th>Quotes matched</th><th>Edits</th><th>Review s</th><th>One defensible answer?</th><th>Matches source?</th><th>Fits skill?</th></tr>
-      ${rows.map(t => `<tr><td>${new Date(t.createdAt).toLocaleTimeString()}</td><td>${esc(t.sourceVersion)}</td><td>${esc(t.mode)}${t.kind === 'minilesson' ? ' · mini-lesson' : ''}</td><td>${t.validation.ok ? 'passed' : 'rejected: ' + esc((t.validation.errors || []).join(' ').slice(0, 80))}</td><td>${q(t)}</td><td>${t.edits.length}</td><td>${t.reviewMs ? Math.round(t.reviewMs / 1000) : '–'}</td>
+      ${rows.length ? `<div class="scroll"><table class="tbl tg-tbl"><tr><th>When</th><th>Source</th><th>Mode</th><th>Prompt version</th><th>Origin</th><th>Checks</th><th>Quotes matched</th><th>Edits</th><th>Review s</th><th>One defensible answer?</th><th>Matches source?</th><th>Fits skill?</th></tr>
+      ${rows.map(t => `<tr><td>${new Date(t.createdAt).toLocaleTimeString()}</td><td>${esc(t.sourceVersion)}</td><td>${esc(t.mode)}${t.kind === 'minilesson' ? ' · mini-lesson' : ''}</td><td>${esc(t.promptVersion || '–')}</td><td>${t.provenance === 'fixture' || /^fixture/.test(String(t.mode)) ? 'Authored demo fixture' : t.provenance === 'live-ai' || /live-ai/.test(String(t.mode)) ? 'Live AI' : /offline/.test(String(t.mode)) ? 'Authored fixture' : '–'}</td><td>${t.validation.ok ? 'passed' : 'rejected: ' + esc((t.validation.errors || []).join(' ').slice(0, 80))}</td><td>${q(t)}</td><td>${t.edits.length}</td><td>${t.reviewMs ? Math.round(t.reviewMs / 1000) : '–'}</td>
         ${['unique', 'source', 'skill'].map(k => `<td><select class="inp sel" aria-label="${k} for ${esc(t.id)}" data-ev="${esc(t.id)}" data-k="${k}"><option value="">–</option>${EV(ev(t)[k])}</select></td>`).join('')}</tr>`).join('')}</table></div>` : '<p>No drafts yet. Run a draft (live, or the authored fixture) and a row appears here.</p>'}
       <p class="small">Fixed bank baseline for comparison: one item (<code>${esc(TC.fixedBankBaseline.id)}</code>) with its own short context, no quote and no feedback for each choice.</p></details>`;
   }
@@ -606,7 +606,7 @@ window.SQ_TEACH = function install(C) {
     const raw = await C.aiCall('adapt', { grade: learner().grade, level: 2, target, sentences: sentsIn }); A0.busy = false;
     if (!raw) { A0.msg = 'The AI did not answer. Check the connection and try again.'; return render(); }
     raw.__target = target; const errs = checkAdapt(raw, sentsIn, orig), ok = !errs.length;
-    S.traces = [{ id: 't' + Date.now(), promptVersion: 'pip-adapt-1', mode: 'live-ai reading-level', tier: 'default', createdAt: Date.now(), sourceVersion: pi.version, skillId: TS.skill, evidenceStrength: '–', input: { target, sentences: sentsIn }, output: raw, validation: { ok, errors: errs }, status: ok ? 'pending review' : 'rejected', edits: [], approvedIds: [], rejectedItems: 0, kind: 'adapt' }, ...(S.traces || [])].slice(0, 12); C.save();
+    S.traces = [{ id: 't' + Date.now(), promptVersion: 'pip-adapt-1', mode: (C.AI().src === 'fixture' ? 'fixture' : 'live-ai') + ' reading-level', tier: 'default', createdAt: Date.now(), sourceVersion: pi.version, skillId: TS.skill, evidenceStrength: '–', input: { target, sentences: sentsIn }, output: raw, validation: { ok, errors: errs }, status: ok ? 'pending review' : 'rejected', edits: [], approvedIds: [], rejectedItems: 0, kind: 'adapt' }, ...(S.traces || [])].slice(0, 12); C.save();
     if (!ok) { A0.msg = ''; A0.res = { bad: errs }; return render(); }
     A0.msg = ''; A0.res = { target, orig, now: readMeasure(raw.sentences.map(x => x.text)), sents: raw.sentences.map(x => ({ text: x.text, from: x.from })), notes: String(raw.notes || '').slice(0, 200), version: pi.version }; render();
   }
@@ -617,7 +617,7 @@ window.SQ_TEACH = function install(C) {
     let res = '';
     if (A0.msg) res += `<p class="small" role="status">${esc(A0.msg)}</p>`;
     if (r && r.bad) res += `<div class="tg-rej" role="alert"><b>This version was rejected by the checks</b><ul>${r.bad.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
-    if (r && r.sents) res += `<p class="tg-mode live">Live AI draft · ${esc(r.target)} · checks passed (every original sentence covered, no new numbers or names)</p>
+    if (r && r.sents) res += `<p class="tg-mode live">${C.AI().src === 'fixture' ? 'Authored demo fixture' : 'Live AI draft'} · ${esc(r.target)} · checks passed (every original sentence covered, no new numbers or names)</p>
       <table class="tbl"><tr><th></th><th>Original</th><th>This version</th></tr><tr><th>Words per sentence</th><td>${r.orig.perSentence}</td><td>${r.now.perSentence}</td></tr><tr><th>Long words (7+ letters)</th><td>${r.orig.longPct}%</td><td>${r.now.longPct}%</td></tr><tr><th>Estimated grade level</th><td>${r.orig.grade}</td><td>${r.now.grade}</td></tr></table>
       <p class="small">Measured by formula (Flesch–Kincaid), not by the AI. It is a rough guide.${r.notes ? ' Pip: ' + esc(r.notes) : ''}</p>
       <ol class="tg-sents">${r.sents.map((x, k) => `<li><input class="inp" aria-label="Sentence ${k + 1}" data-f="adtext" data-k="${k}" value="${esc(x.text)}"> <code>from ${esc(x.from.join(', '))}</code></li>`).join('')}</ol>

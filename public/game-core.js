@@ -275,24 +275,25 @@ G.creator = function creator(pid) {
   C.view(`<div class="card creator"><h2>${ex ? 'Edit your adventurer' : 'Create your adventurer'}</h2>
     <div class="crgrid"><div class="crprev" id="crprev">${G.avatarSvg(CR.av, { gear: ex ? ex.gear.on : {} })}<div class="row tight"><button class="btn ghost" data-a="gAvRandom">🎲 Randomize</button><button class="btn ghost" data-a="gAvReset">Reset</button></div></div>
     <div class="crctl">${ex ? '' : `<label class="lab" for="nm">A nickname (you do not need your real name)</label><input id="nm" class="inp" maxlength="14" autocomplete="off" placeholder="Nickname" value="${esc(CR.name)}">
-      <div class="lab">What grade are you in?</div><div class="grades">${[1, 2, 3, 4, 5, 6].map(g => `<button class="gr ${g === CR.grade ? 'on' : ''}" data-a="gGrade" data-v="${g}" aria-pressed="${g === CR.grade}">${g}</button>`).join('')}</div>`}
+      <div class="lab">What grade are you in?</div><div class="grades">${[1, 2, 3, 4, 5, 6, 7, 8].map(g => `<button class="gr ${g === CR.grade ? 'on' : ''}" data-a="gGrade" data-v="${g}" aria-pressed="${g === CR.grade}">${g}</button>`).join('')}</div>`}
       ${CFG.map(([k, t, kind]) => { const list = optsOf(k), cur = CR.av[k];
         return `<div class="crrow"><span class="crl">${t}</span>${kind === 'sw' ? `<span class="sws" role="group" aria-label="${t}">${list.map(id => sw(k, id, hexOf(k === 'skin' ? AV.skin : k === 'hairColor' ? AV.hairColor : AV.eyeColor, id))).join('')}</span>`
           : `<span class="pnr"><button class="btn ghost sm" data-a="gAvStep" data-k="${k}" data-s="-1" aria-label="Previous ${t}">‹</button><b>${esc(G.humanize(cur))}</b><button class="btn ghost sm" data-a="gAvStep" data-k="${k}" data-s="1" aria-label="Next ${t}">›</button></span>`}</div>`; }).join('')}
-      <p class="small">All body and face choices are free for everyone.</p><p id="err" class="err" role="alert">${esc(CR.err)}</p></div></div>
+      ${ex ? '' : `<details class="optmail"><summary>Parent or guardian email (optional)</summary><p class="small">A grown-up can add an email to get a weekly study update with graphs. You can skip this and add it later. It stays on this device.</p><label class="lab" for="pe">Parent or guardian email</label><input id="pe" class="inp" type="email" autocomplete="off" placeholder="parent@example.com" value="${esc(CR.pe || '')}"></details>`}<p class="small">All body and face choices are free for everyone.</p><p id="err" class="err" role="alert">${esc(CR.err)}</p></div></div>
     <div class="row"><button class="btn ghost" data-a="${ex ? 'gProgress' : 'home'}">Back</button><button class="btn big" data-a="gAvSave">${ex ? 'Save' : 'Next: pick an egg'}</button></div></div>`, false, true);
 };
-const crRedraw = () => { const n = $('#nm'); if (n) CR.name = n.value; G.creator(CR.pid); const m = $('#nm'); if (m) m.value = CR.name; };
+const crRedraw = () => { const n = $('#nm'); if (n) CR.name = n.value; const e = $('#pe'); if (e) CR.pe = e.value; G.creator(CR.pid); const m = $('#nm'); if (m) m.value = CR.name; };
 G.actions.gAvSet = d => { CR.av[d.k] = d.v; crRedraw(); };
 G.actions.gAvStep = d => { const l = optsOf(d.k), i = (l.indexOf(CR.av[d.k]) + (+d.s) + l.length) % l.length; CR.av[d.k] = l[i]; crRedraw(); };
 G.actions.gAvRandom = () => { CFG.forEach(([k]) => { const l = optsOf(k); CR.av[k] = pick(l); }); crRedraw(); };
 G.actions.gAvReset = () => { CR.av = G.avDefault(); crRedraw(); };
 G.actions.gGrade = d => { CR.grade = +d.v; crRedraw(); };
 G.actions.gAvSave = () => {
-  const n = $('#nm'); if (n) CR.name = n.value.trim();
+  const n = $('#nm'); if (n) CR.name = n.value.trim(); const pe = $('#pe'); if (pe) CR.pe = pe.value.trim();
   if (CR.pid) { const p = C.S.profiles.find(x => x.id === CR.pid); p.av = { ...CR.av }; p.avDone = true; C.save(); C.sfx.win(); CR = null; return G.progress(); }
   if (!CR.name) { CR.err = 'Type a nickname first.'; return G.creator(null); } if (!CR.grade) { CR.err = 'Tap your grade.'; return G.creator(null); }
-  const p = C.newProfile(CR.name, '🙂', CR.grade); p.av = { ...CR.av }; p.avDone = true; p.pet = ''; S.profiles.push(p); S.current = p.id; C.save(); CR = null; C.sfx.win(); G.migrate(p); G.eggs();
+  if (CR.pe && !/^[^@\s<>,;]{1,64}@[^@\s<>,;]{1,120}\.[A-Za-z]{2,}$/.test(CR.pe)) { CR.err = 'That email does not look right. Fix it or leave it empty.'; return G.creator(null); }
+  const p = C.newProfile(CR.name, '🙂', CR.grade); p.av = { ...CR.av }; p.avDone = true; p.pet = ''; if (CR.pe) { p.parentEmail = CR.pe; p.parentOK = true; } S.profiles.push(p); S.current = p.id; C.save(); CR = null; C.sfx.win(); G.migrate(p); G.eggs();
 };
 G.actions.newP = () => { CR = null; G.creator(null); };
 G.actions.gAvEdit = () => G.creator(C.cur().id);

@@ -12,6 +12,7 @@
 | `prompts.js` | Every prompt sent to the model | tune wording. Bump the version string |
 | `game-tutor.js` | Ask Pip: AI tutor in battles (explains where an answer went wrong, answers student questions; reply checks reject answer leaks and invented quotes) | tune checks, chips |
 | `game-fluency.js` | Read it aloud: speech recognition + word alignment, AI coaching note | change scoring |
+| `game-tour.js` | Automated Run-through: step-based narrated tour in a throw-away synthetic session | make it write to real saves (it must keep `SQ_NOSAVE` on) |
 | `game-parent.js` | Parent study report with trackers/graphs; Send button -> `/api/email` | change report layout |
 | `server.py` | Static server + `/api/ai` | add an AI `kind` and its prompt |
 
@@ -58,3 +59,12 @@ It connects the AI if needed, calls `C.aiRaw`, validates, and saves a trace (mod
 - Battle uses a two-column layout on screens 900px and wider (passage left, question right) so it fits without scrolling at 1280x720. Ask Pip sits beside the question; the item bag is an even three-column grid.
 - Pip bonus: after a wrong answer, asking Pip and then working it out earns +5 coins (max 30 a day). Asking is never penalised and evidence rules are unchanged. See `G.tutorBonus` in `game-tutor.js`.
 - Voice: one British male voice from the browser's speech engine (`pickVoice` in `app.js`), no switching to other voices.
+
+## Automated Run-through (`game-tour.js`)
+Launch: **Teachers & Parents → ▶ Demo run-through**, or **Demo Controls → Automated Run-through**, or the QA screen. Two lengths: *Full demo* (about 9 minutes) and *Quick overview* (about 3 minutes).
+- **Separate session.** On start it snapshots the real save, switches `S` to an in-memory demo state and sets `window.SQ_NOSAVE`, so `save()` writes nothing. Exit (or restart) throws the demo state away and restores the snapshot. Real players are never changed, and demo answers never count as learner evidence.
+- **Steps.** Each step in the `ALL` array has `ch` (chapter), `say` / `sayQ` (full / quick narration, also the caption), `ensure` (build the screen it needs, so any step can be entered cold), `act` (drive the real UI with `X.press`, `X.type`, `X.look`), `expect` (state to wait for) and `hold`. Add a step by pushing another `S_({...})`; mark it `q: true` to include it in the quick tour.
+- **Real UI only.** Steps press real buttons (`[data-a=...]`) and wait for the real battle phase (`G.btx.cur()`), so animations and rules are the game's own. Battles use the real engine. The only simulated action is *Quick overview's* skip to the chest, which the game itself marks as a simulated result.
+- **AI labels.** During the tour `AI.fixture` is on and `SQ_FIX` routes calls: live Claude (if connected, 15–20 s timeout, validated) else an authored fixture. Every AI step shows **Live AI response**, **Authored demo fixture**, **Saved AI response** or **Rule-based feedback**. Fixtures live in `FIX` / `FIXG` in `game-tour.js`, pass the same validators as real replies, and are never labelled live. Traces made during the tour carry `provenance: 'fixture'`.
+- **No email.** `fetch('/api/email')` is stubbed to a dry run while the tour runs.
+- **Pause, jump, restart.** Every wait goes through `X.sleep` / `X.until`, which stop while paused and throw when the run is cancelled, so Pause, Next, Previous, chapter jumps, Restart and Exit never leave a stray action behind.

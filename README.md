@@ -85,3 +85,6 @@ Run locally with `python3 server.py` (port 5173). Test mode without a key: `SQ_M
 ## Demo Controls and AI modes (v11)
 - **Demo Controls** (purple button, top right of every QA screen): wallet, grants, worlds/chapters, battle shortcuts, presets, click-path guide. QA adventurer only; simulated outcomes are tagged and write no attempts. Code: `public/game-demo.js`, hook `G.btx` in `game-battle.js`.
 - **Teacher modes** in `teach.js`: mini-lesson (worked example, guided, independent, shorter-directions support), story mission, evidence-linked recap, evaluation log. Prompts: `prompts.js` (`buildMini`, `buildMission`, `buildRecap`). Offline items are authored fixtures; live drafts need a signed-in Claude view.
+
+## Automated Run-through (v17)
+A narrated tour that operates the real prototype in a separate synthetic session. Start it from **Teachers & Parents → ▶ Demo run-through** (or Demo Controls). *Full demo* ≈ 9 min, *Quick overview* ≈ 3 min, with play/pause, next/previous, restart, a progress bar, a chapter selector, separate narration and sound toggles, captions and an **Exit Demo** button. It works with no API key: AI segments use authored fixtures and are labelled **Authored demo fixture**; with Claude connected they use a live reply and are labelled **Live AI response**. Real saves are never changed, and no email is ever sent. See `TEAM-GUIDE.md`.

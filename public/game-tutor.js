@@ -53,8 +53,8 @@ function connectCard() {
 function view(focus) {
   const c = ctxNow(), ai = C.AI().on, chips = c ? BATTLE_CHIPS : FREE_CHIPS;
   const log = `<div class="tut-log" role="log" aria-live="polite">${T.turns.map((t, n) => t.role === 'you' ? `<p class="tut-you"><b>You:</b> ${esc(t.text)}</p>`
-    : `<div class="tut-pip"><p><b>Pip:</b> ${esc(t.text)}</p>${t.quote ? `<q class="tut-q">${esc(t.quote)}</q>` : ''}${t.check ? `<p><i>${esc(t.check)}</i></p>` : ''}<small class="tut-tag">Claude’s reply${c ? ' · checked against the passage' : ''}</small> <button class="btn sm ghost" data-a="tutSay" data-n="${n}">🔊 Read aloud</button></div>`).join('') || `<p class="small">${c ? 'Ask about this question. Pip helps you find the answer, not give it away.' : 'Ask Pip anything about reading, words or writing.'}</p>`}${T.busy ? '<p class="small" role="status">Pip is thinking…</p>' : ''}${ai && T.msg ? `<p class="small" role="status">${esc(T.msg)}</p>` : ''}</div>`;
-  G.panel(`<h2>🦊 Ask Pip ${c ? `<small>· ${c.stale ? 'your last question' : 'this question'}</small>` : ''} <span class="aimode ${ai ? 'on' : ''}">${ai ? '✨ AI on' : 'AI off'}</span></h2>${ai ? `<p class="small tut-mode">✨ Connected to ${esc(C.AI().provider || 'Claude')}.</p>${log}
+    : `<div class="tut-pip"><p><b>Pip:</b> ${esc(t.text)}</p>${t.quote ? `<q class="tut-q">${esc(t.quote)}</q>` : ''}${t.check ? `<p><i>${esc(t.check)}</i></p>` : ''}<small class="tut-tag">${t.src === 'fixture' ? 'Authored demo fixture (not a live AI reply)' : 'Claude’s reply'}${c ? ' · checked against the passage' : ''}</small> <button class="btn sm ghost" data-a="tutSay" data-n="${n}">🔊 Read aloud</button></div>`).join('') || `<p class="small">${c ? 'Ask about this question. Pip helps you find the answer, not give it away.' : 'Ask Pip anything about reading, words or writing.'}</p>`}${T.busy ? '<p class="small" role="status">Pip is thinking…</p>' : ''}${ai && T.msg ? `<p class="small" role="status">${esc(T.msg)}</p>` : ''}</div>`;
+  G.panel(`<h2>🦊 Ask Pip ${c ? `<small>· ${c.stale ? 'your last question' : 'this question'}</small>` : ''} <span class="aimode ${ai ? 'on' : ''}">${ai ? '✨ AI on' : 'AI off'}</span></h2>${ai ? `<p class="small tut-mode">${C.AI().fixture ? '🎬 Demo mode: each reply is labelled live or authored example.' : '✨ Connected to ' + esc(C.AI().provider || 'Claude') + '.'}</p>${log}
     <div class="tut-chips" role="group" aria-label="Quick questions">${chips.map(([t], k) => `<button class="btn sm" data-a="tutChip" data-k="${k}">${t}</button>`).join('')}</div>
     <div class="row tight"><input id="tut-in" class="inp" maxlength="200" placeholder="Type your own question…" aria-label="Your question for Pip" autocomplete="off"><button class="btn big" data-a="tutSend">Ask</button></div>
     <label class="tg-chk"><input type="checkbox" id="tut-voice" data-a="tutVoice" ${voiceOn() ? 'checked' : ''}> 🔊 Read Pip’s answers out loud</label>` : connectCard()}
@@ -85,7 +85,7 @@ async function ask(text) {
   let raw = await C.aiCall('tutor', body()); if (!okReply(raw, c)) raw = await C.aiCall('tutor', body(' (Please keep it short, never give the answer away, and quote the passage exactly if you quote.)'));
   T.busy = false;
   if (okReply(raw, c)) {
-    T.turns.push({ role: 'pip', text: String(raw.reply).trim(), quote: raw.quote || '', check: raw.check || '', mode: 'ai' });
+    T.turns.push({ role: 'pip', text: String(raw.reply).trim(), quote: raw.quote || '', check: raw.check || '', mode: 'ai', src: C.AI().src === 'fixture' ? 'fixture' : 'live' });
     if (c && phaseOf(c) === 'retry') helped.add(c.qid);
     if (p) { p.tutorLog = [...(p.tutorLog || []), { at: Date.now(), qid: c ? c.qid : 'free', ask: clean.slice(0, 120), mode: 'ai', phase: phaseOf(c) }].slice(-200); C.save(); }
     if (voiceOn()) { const last = T.turns[T.turns.length - 1]; speak(last.text + (last.check ? ' ' + last.check : '')); }
@@ -101,7 +101,7 @@ function fab() {
   b.hidden = false;
 }
 setInterval(fab, 500);
-G.tutorOk = okReply;
+G.tutorOk = okReply; G.tutorReset = () => { LAST = null; T = { key: '', turns: [], busy: false, msg: '', connecting: false }; helped.clear(); };
 const _leave = G.leave; G.leave = (...a) => { ctxNow(); hush(); G.closePanel(); return _leave(...a); };
 const _qd = A.qaDash; if (_qd) A.qaDash = (...a) => { G.closePanel(); return _qd(...a); };
 });
