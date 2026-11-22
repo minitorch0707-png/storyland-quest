@@ -359,7 +359,7 @@ function home() {
     <section class="chcard" aria-labelledby="chh"><h2 id="chh">Choose your player</h2><div class="chgrid">
       ${ps.map(p => `<button class="prof" data-a="pickP" data-id="${p.id}" title="${esc(p.name)}">${G ? G.portrait(p, 64) : `<span>${p.avatar}</span>`}<b>${esc(p.name)}</b><small>Grade ${p.grade} · ${coin()} ${p.coins || 0}</small></button>`).join('')}
       <button class="prof add" data-a="newP"><span>➕</span><b>New player</b><small>Start here!</small></button></div></section>
-    <footer class="chfoot"><span class="chips">${togs()}</span><button class="btn3 teal" data-a="gate">👩‍🏫 Teachers &amp; Parents</button></footer></div>`, false, true);
+    <footer class="chfoot"><span class="chips">${togs()}</span><button class="btn3 teal" data-a="gate">👩‍🏫 Teachers &amp; Parents</button><button class="btn3 gold" data-a="hubOpen" title="Presentation hub: run sheet, evidence, Q&amp;A, documents">🎓 Class Demo</button></footer></div>`, false, true);
 }
 let draft = {avatar:AVATARS[0], grade:0};
 function newP() {
@@ -621,14 +621,7 @@ function bonus() {
 
 /* ---------- grown-ups ---------- */
 let gateQ = [7, 8];
-function gate() {
-  gateQ = [6 + (Math.random() * 4 | 0), 6 + (Math.random() * 4 | 0)];
-  setTimeout(() => { calmMode = true; applySettings(); });
-  view(`<div class="card center narrow"><h2>👩‍🏫 Grown-ups only</h2><p>To open the teacher &amp; parent dashboard, answer:</p><h1>${gateQ[0]} × ${gateQ[1]} = ?</h1>
-    <input id="ga" class="inp short" inputmode="numeric" autocomplete="off" aria-label="Answer"><p id="err" class="err" role="alert"></p>
-    <div class="row"><button class="btn ghost" data-a="home">Back</button><button class="btn big" data-a="gateGo">Open</button></div></div>`);
-  $('#ga').focus();
-}
+function gate() { setTimeout(() => { calmMode = true; applySettings(); }); dash(); }
 function stat(p, skill) {
   const l = p.log.filter(x => x.skill === skill), r = l.slice(-20);
   return {n:l.length, acc:r.length ? Math.round(100 * r.filter(x => x.ok).length / r.length) : null, guess:l.filter(x => x.g).length, m:Math.round(p.skills[skill].m), lv:lvl(p.skills[skill].m)};
@@ -681,7 +674,7 @@ function dash(extra = '') {
     : `<p><b>AI is not connected</b>, so the app is using its built-in content. Paste an API key to switch on the AI features. The key is saved only on this computer (in <code>.env</code>).</p>
       <div class="row left"><select id="kp" class="inp sel" aria-label="AI provider"><option value="anthropic">Claude (Anthropic)</option><option value="openai">ChatGPT (OpenAI)</option><option value="gemini">Gemini (Google)</option></select>
       <input id="kk" class="inp keyin" type="password" autocomplete="off" placeholder="Paste API key" aria-label="API key"><button class="btn big" data-a="connect">Connect</button></div><p id="kerr" class="err" role="alert"></p>`;
-  view(`<header class="top dtop"><b>👩‍🏫 Teacher &amp; Parent Dashboard</b><span class="chip ${AI.on ? 'aion' : ''}">${AI.on ? `✨ AI on · ${esc(AI.provider)}` : 'AI off'}</span><span class="sp"></span><button class="chip" data-a="tourMenu" title="A narrated, automatic tour of the whole prototype">▶ Demo run-through</button><button class="chip" data-a="qaOpen" title="Synthetic test profile, separate from real students">🧪 Open QA Adventurer</button><button class="chip" data-a="home">⬅ Back to app</button></header>
+  view(`<header class="top dtop"><b>👩‍🏫 Teacher &amp; Parent Dashboard</b><span class="chip ${AI.on ? 'aion' : ''}">${AI.on ? `✨ AI on · ${esc(AI.provider)}` : 'AI off'}</span><span class="sp"></span><button class="chip hubchip" data-a="hubOpen" title="Run sheet, evidence, Q&amp;A and documents for the class presentation">🎓 Class Demo hub</button><button class="chip" data-a="tourMenu" title="A narrated, automatic tour of the whole prototype">▶ Demo run-through</button><button class="chip" data-a="qaOpen" title="Synthetic test profile, separate from real students">🧪 Open QA Adventurer</button><button class="chip" data-a="home">⬅ Back to app</button></header>
     <div class="card dashc"><h2>🤖 Generative AI</h2>${connect}<div class="row left"><button class="btn ghost" data-a="prompts">🔍 How the AI is prompted</button></div><div id="pr"></div></div>
     <div class="card dashc" id="tcard" aria-live="polite"></div>
     <div class="card dashc" id="ecard"></div><div class="card dashc" id="grcard"></div><div class="card dashc" id="excard"></div><div class="card dashc" id="pacard"></div><div class="card dashc" id="rcard"></div>
@@ -847,7 +840,7 @@ const ACT = {
   doneWrite() { const p = cur(), f = W.last; record(p, 'writing', {correct:f.stars >= 2, ms:0, sub:'composition', delta:[-3, 6, 11][f.stars - 1]});
     if (G) { W = null; map('Nice writing!'); return G.quickReward(p, { title: 'Free writing', coins: f.stars * 6, xp: f.stars * 8 }); }
     Q = {...newQuest('writing', [{}]), stars:f.stars * 3, xp:f.stars * 10, coins:f.stars * 6, first:f.stars >= 2 ? 1 : 0, before:W.level}; W = null; finishQuest(); },
-  gateGo() { if (+$('#ga').value === gateQ[0] * gateQ[1]) dash(); else $('#err').textContent = 'Not quite. Try again.'; },
+  gateGo() { dash(); },
   selP(d) { dashSel = d.id; dash(); },
   demo() { demo(); dashSel = null; dash(); }, undemo() { S.profiles = S.profiles.filter(p => !p.demo || p.synthetic); save(); dash(); },
   delP(d, el) { const p = S.profiles.find(x => x.id === dashSel); if (!p) return; if (el.dataset.sure) { S.profiles = S.profiles.filter(x => x !== p); save(); dash(); } else { el.dataset.sure = 1; el.textContent = `Tap again to remove ${p.name}`; } },
