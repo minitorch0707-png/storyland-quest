@@ -274,7 +274,7 @@ function aiStrip() {
 function shell() {
   const t = TABS.find(x => x[0] === H.tab) || TABS[0];
   return `<div class="hubwrap" id="hub" role="dialog" aria-modal="true" aria-label="Presentation Hub"><div class="hub">
-    <header class="hhead"><div class="hlogo">🎓<b>Class Demo Hub</b></div>${timer.run || timer.left < 600 ? `<button class="hpill" data-h="tab" data-k="run" title="Presenter timer"><span id="h-time2">${fmt(timer.left)}</span></button>` : ''}<span class="hsp"></span><button class="hbtn sm ghost" data-h="full" title="Toggle full screen (F)">⛶</button><button class="hbtn sm" data-h="close" aria-label="Close hub">✕ Close</button></header>
+    <header class="hhead"><div class="hlogo">🎓<b>Class Demo Hub</b></div>${timer.run || timer.left < 600 ? `<button class="hpill" data-h="tab" data-k="run" title="Presenter timer"><span id="h-time2">${fmt(timer.left)}</span></button>` : ''}<span class="hsp"></span><button class="hbtn sm gold" data-h="present" title="Open slide view (P)">▶ Present</button><button class="hbtn sm ghost" data-h="full" title="Toggle full screen (F)">⛶</button><button class="hbtn sm" data-h="close" aria-label="Close hub">✕ Close</button></header>
     ${aiStrip()}
     <nav class="htabs" role="tablist">${TABS.map(x => `<button role="tab" aria-selected="${x[0] === H.tab}" class="${x[0] === H.tab ? 'on' : ''}" data-h="tab" data-k="${x[0]}"><span>${x[1]}</span>${x[2]}</button>`).join('')}</nav>
     <main class="hbody" id="hbody" data-tab="${t[0]}">${T[t[0]]()}</main>
@@ -338,6 +338,7 @@ document.addEventListener('click', e => {
   else if (h === 'go') launch(k);
   else if (h === 'tstart') { if (timer.run) { timer.run = false; clearInterval(timer.id); FX.tick(); } else { if (timer.left <= 0) timer.left = 600; timer.run = true; timer.last = performance.now(); clearInterval(timer.id); timer.id = setInterval(tick, 500); FX.go(); } render(true); }
   else if (h === 'treset') { timer.run = false; clearInterval(timer.id); timer.left = 600; FX.tick(); render(true); pill(); }
+  else if (h === 'present') { closeHub(); setTimeout(() => window.SQ_PRESENT && window.SQ_PRESENT.open(), 260); }
   else if (h === 'aiconn') { const o = document.getElementById('h-aiout'); if (o) o.textContent = 'Connecting…'; C.connectAI().then(r => { render(true); const o2 = document.getElementById('h-aiout'); if (o2 && !(r && r.ok)) o2.textContent = (r && r.error) || 'Not allowed.'; }); }
   else if (h === 'aitest') { const o = document.getElementById('h-aiout'); if (o) o.textContent = 'Asking Claude…'; const t0 = performance.now();
     C.aiRaw('Reply with JSON only, no prose: {"question":"<one reading-comprehension question, 20 words or fewer, answerable from the sentence>"}. Sentence: "Ari looked through the telescope and saw a bright planet with rings."')
