@@ -701,3 +701,9 @@ body.touring .bt-pin{top:var(--tth,110px)}
 .node.pl-shine{animation:plShine .7s ease-out}@keyframes plShine{0%{transform:scale(1)}40%{transform:scale(1.35) rotate(-8deg);filter:brightness(1.4)}100%{transform:none}}
 .stopb{transition:transform .18s cubic-bezier(.2,1.4,.4,1),box-shadow .18s}.stopb:hover{transform:translateY(-2px) scale(1.01);box-shadow:0 8px 16px rgba(80,60,160,.18)}.stopb:active{transform:scale(.98)}
 @media (prefers-reduced-motion:reduce){.pl-pop,.pl-star,.node.pl-beacon{animation:none}.pl-star{display:none}}
+
+/* ---- Hub: live AI status strip ---- */
+.hai{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 16px;font-size:.85rem;border-bottom:1px solid rgba(255,255,255,.08)}
+.hai.on{background:rgba(60,200,120,.16)}.hai.off{background:rgba(255,120,80,.16)}
+.hdot{width:10px;height:10px;border-radius:50%;background:#ff7a50}.hai.on .hdot{background:#3ddc84;animation:hubGlow 2s infinite}
+.hai-t{opacity:.85;min-width:0}.hai-out{flex-basis:100%;font-size:.85rem}

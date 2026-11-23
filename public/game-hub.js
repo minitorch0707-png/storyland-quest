@@ -265,10 +265,17 @@ const T = {
 };
 
 /* ---------- shell ---------- */
+const hasClaudeHost = () => !!(window.claude && window.claude.use);
+function aiStrip() {
+  const a = C.AI(), live = a.on && !a.fixture;
+  const why = live ? '' : hasClaudeHost() ? 'Not connected yet. Press Connect, then choose Allow.' : 'This page is not running inside Claude and no API key is set on this server. Open the shared Claude link while signed in, or start the server with ANTHROPIC_API_KEY.';
+  return `<div class="hai ${live ? 'on' : 'off'}" id="h-ai"><span class="hdot"></span><b>${live ? 'Claude is live' : 'AI is off'}</b><span class="hai-t">${live ? esc(a.provider || 'Claude') + (a.model ? ' · ' + esc(a.model) : '') : esc(why)}</span><span class="hsp"></span>${live ? '<button class="hbtn sm" data-h="aitest">⚡ Run live test</button>' : (hasClaudeHost() ? '<button class="hbtn sm" data-h="aiconn">Connect Claude</button>' : '')}<output class="hai-out" id="h-aiout" aria-live="polite"></output></div>`;
+}
 function shell() {
   const t = TABS.find(x => x[0] === H.tab) || TABS[0];
   return `<div class="hubwrap" id="hub" role="dialog" aria-modal="true" aria-label="Presentation Hub"><div class="hub">
     <header class="hhead"><div class="hlogo">🎓<b>Class Demo Hub</b></div>${timer.run || timer.left < 600 ? `<button class="hpill" data-h="tab" data-k="run" title="Presenter timer"><span id="h-time2">${fmt(timer.left)}</span></button>` : ''}<span class="hsp"></span><button class="hbtn sm ghost" data-h="full" title="Toggle full screen (F)">⛶</button><button class="hbtn sm" data-h="close" aria-label="Close hub">✕ Close</button></header>
+    ${aiStrip()}
     <nav class="htabs" role="tablist">${TABS.map(x => `<button role="tab" aria-selected="${x[0] === H.tab}" class="${x[0] === H.tab ? 'on' : ''}" data-h="tab" data-k="${x[0]}"><span>${x[1]}</span>${x[2]}</button>`).join('')}</nav>
     <main class="hbody" id="hbody" data-tab="${t[0]}">${T[t[0]]()}</main>
     <footer class="hfoot"><span>← → switch tabs · Esc close</span></footer></div></div>`;
@@ -331,6 +338,11 @@ document.addEventListener('click', e => {
   else if (h === 'go') launch(k);
   else if (h === 'tstart') { if (timer.run) { timer.run = false; clearInterval(timer.id); FX.tick(); } else { if (timer.left <= 0) timer.left = 600; timer.run = true; timer.last = performance.now(); clearInterval(timer.id); timer.id = setInterval(tick, 500); FX.go(); } render(true); }
   else if (h === 'treset') { timer.run = false; clearInterval(timer.id); timer.left = 600; FX.tick(); render(true); pill(); }
+  else if (h === 'aiconn') { const o = document.getElementById('h-aiout'); if (o) o.textContent = 'Connecting…'; C.connectAI().then(r => { render(true); const o2 = document.getElementById('h-aiout'); if (o2 && !(r && r.ok)) o2.textContent = (r && r.error) || 'Not allowed.'; }); }
+  else if (h === 'aitest') { const o = document.getElementById('h-aiout'); if (o) o.textContent = 'Asking Claude…'; const t0 = performance.now();
+    C.aiRaw('Reply with JSON only, no prose: {"question":"<one reading-comprehension question, 20 words or fewer, answerable from the sentence>"}. Sentence: "Ari looked through the telescope and saw a bright planet with rings."')
+      .then(r => { const q = r && (r.question || (typeof r === 'string' ? r : '')), ms = Math.round(performance.now() - t0), o2 = document.getElementById('h-aiout'); if (!o2) return;
+        if (q) { o2.innerHTML = `Live reply in ${(ms / 1000).toFixed(1)}s: <b>“${esc(String(q))}”</b>`; FX.good(); } else { o2.textContent = 'No reply (timed out or not allowed). The app falls back to labelled fixtures.'; FX.bad(); } }); }
   else if (h === 'full') { const el = document.documentElement; try { document.fullscreenElement ? document.exitFullscreen() : (el.requestFullscreen && el.requestFullscreen()); } catch (er) { /* ignore */ } }
   else if (h === 'dmg') { H.dmg = k; FX.bad(); render(true); setTimeout(() => FX.good(), 160); }
   else if (h === 'ef') { H.ef = k; FX.tick(); render(true); }
@@ -368,6 +380,7 @@ A.hubOpen = () => openHub();
 G.hubOpen = openHub; G.hubClose = closeHub;
 G.hubMenuHtml = () => `<details open><summary>Class Demo Hub</summary><p class="small">Run sheet, AI story, evidence, Q&amp;A practice and the course documents in one place.</p><div class="dm-row"><button class="btn sm" data-a="hubOpen">🎓 Open the hub</button></div></details>`;
 G.hubTab = openHub;
+document.addEventListener('sq-ai', () => { if (document.getElementById('hub')) render(true); });
 window.SQ_HUB = { open: openHub, close: closeHub, tabs: TABS.map(t => t[0]), validate: (i, p) => validate(i || FIXTURE[0], p || PASSAGE) };
 
 /* quiet tick on small controls everywhere (not on game answers) */

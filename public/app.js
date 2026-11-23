@@ -887,12 +887,15 @@ document.addEventListener('keydown', e => { if (e.key !== 'Enter') return; if (e
 /* ---------- boot ---------- */
 const start = () => { if (location.hash === '#qa' && window.SQ_G && window.SQ_G.qaScreen) return window.SQ_G.qaScreen(); if (cur()) map(); else home(); };
 start();
+/* Claude asks for consent only after a click or tap, so retry the built-in connection on the first gesture if the load-time try came back empty. */
+let gestTries = 0; document.addEventListener('pointerdown', () => { if (AI.on || gestTries >= 2 || !(window.claude && window.claude.use && window.SQ_PROMPTS)) return; gestTries++;
+  connectAI().then(r => { if (r && r.ok) { if ($('.world') || $('.trailpage')) map(); document.dispatchEvent(new Event('sq-ai')); } }).catch(() => {}); }, true);
 const j = u => fetch(u).then(r => r.json()).catch(() => null);
 Promise.all([j('/api/status'), j('/api/assets')]).then(([s, a]) => {
   if (s && s.ai) AI = {on:true, provider:s.provider, model:s.model};
   if (a && Array.isArray(a.names)) ASSETS = new Set(a.names);
   if ((AI.on || (ASSETS.size && !window.SQ_ASSETS)) && !Q && !W && !$('#nm') && !$('#ga')) start(); // redraw with AI features / art
   if (!AI.on && window.claude && window.claude.use && window.SQ_PROMPTS) window.claude.use('sample').then(sm => {
-    if (!sm || AI.on) return; AI = {on:true, provider:'Claude (built in)', model:'', sample:sm}; if ($('.world')) map(); }).catch(() => {});
+    if (!sm || AI.on) return; AI = {on:true, provider:'Claude (built in)', model:'', sample:sm}; if ($('.world') || $('.trailpage')) map(); }).catch(() => {});
 });
 })();
